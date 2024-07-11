@@ -1,0 +1,25 @@
+From: Kan-Ru Chen <kanru@kanru.info>
+Date: Mon, 30 Apr 2018 09:40:47 +0900
+Subject: use debian flavor build options
+
+Do not strip binaries by default and use Debian LDFLAGS
+---
+ Makerules | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/Makerules b/Makerules
+index f25a8ce..b59780c 100644
+--- a/Makerules
++++ b/Makerules
+@@ -90,7 +90,10 @@ endif
+ 
+ ifeq ($(build),debug)
+   CFLAGS += -pipe -g
+-  LDFLAGS += -g
++  LDFLAGS += -g $(LDREMOVEUNREACH)
++else ifeq ($(build),debian)
++  CFLAGS += -pipe -O2 -DNDEBUG 
++  LDFLAGS += -g $(LDREMOVEUNREACH)
+ else ifeq ($(build),release)
+   CFLAGS += -pipe -O2 -DNDEBUG
+   LDFLAGS += $(LDREMOVEUNREACH) -Wl,-s
