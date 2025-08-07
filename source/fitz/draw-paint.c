@@ -573,7 +573,7 @@ static void paint_solid_color_N_da(byte * FZ_RESTRICT dp, int n, int w, const by
 }
 #endif /* FZ_PLOTTERS_N */
 
-#ifdef FZ_ENABLE_SPOT_RENDERING
+#if FZ_ENABLE_SPOT_RENDERING
 static void paint_solid_color_N_alpha_op(byte * FZ_RESTRICT dp, int n, int w, const byte * FZ_RESTRICT color, int da, const fz_overprint * FZ_RESTRICT eop)
 {
 	TRACK_FN();
@@ -1082,7 +1082,7 @@ paint_span_with_color_N_da_alpha(byte * FZ_RESTRICT dp, const byte * FZ_RESTRICT
 }
 #endif /* FZ_PLOTTERS_N */
 
-#ifdef FZ_ENABLE_SPOT_RENDERING
+#if FZ_ENABLE_SPOT_RENDERING
 static void
 paint_span_with_color_N_op_solid(byte * FZ_RESTRICT dp, const byte * FZ_RESTRICT mp, int n, int w, const byte * FZ_RESTRICT color, int da, const fz_overprint * FZ_RESTRICT eop)
 {
@@ -1240,9 +1240,22 @@ template_span_with_mask_3_general(byte * FZ_RESTRICT dp, const byte * FZ_RESTRIC
 			d0 = (((d0<<8) + (s0-d0)*ma)>>8) & mask;
 			d1 = ((d1<<8) + (s1-d1)*ma) & ~mask;
 			d0 |= d1;
-			assert((d0>>24) >= (d0 & 0xff));
-			assert((d0>>24) >= ((d0>>8) & 0xff));
-			assert((d0>>24) >= ((d0>>16) & 0xff));
+
+#ifndef NDEBUG
+			if (isbigendian())
+			{
+				assert((d0 & 0xff) >= (d0>>24));
+				assert((d0 & 0xff) >= ((d0>>16) & 0xff));
+				assert((d0 & 0xff) >= ((d0>>8) & 0xff));
+			}
+			else
+			{
+				assert((d0>>24) >= (d0 & 0xff));
+				assert((d0>>24) >= ((d0>>8) & 0xff));
+				assert((d0>>24) >= ((d0>>16) & 0xff));
+			}
+#endif
+
 			*(uint32_t *)dp = d0;
 			sp += 4;
 			dp += 4;

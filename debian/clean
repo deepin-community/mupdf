@@ -6,3 +6,4 @@ resources/fonts/sil/*.cff
 resources/fonts/urw/input/*.afm
 resources/fonts/urw/input/*.t1
 resources/fonts/urw/*.cff
+output_files/*

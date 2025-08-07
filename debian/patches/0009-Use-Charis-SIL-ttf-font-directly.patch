@@ -1,0 +1,55 @@
+From: Kan-Ru Chen <koster@debian.org>
+Date: Fri, 23 Aug 2024 00:15:10 +0900
+Subject: Use Charis SIL ttf font directly
+
+---
+ Makefile                 | 6 +++---
+ source/fitz/font-table.h | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+--- a/Makefile
++++ b/Makefile
+@@ -210,7 +210,7 @@
+ FONT_BIN += $(sort $(wildcard resources/fonts/droid/DroidSansFallback.ttf))
+ FONT_BIN += $(sort $(wildcard resources/fonts/noto/*.otf))
+ FONT_BIN += $(sort $(wildcard resources/fonts/noto/*.ttf))
+-FONT_BIN += $(sort $(wildcard resources/fonts/sil/*.cff))
++FONT_BIN += $(sort $(wildcard resources/fonts/sil/*.ttf))
+ 
+ # Note: The tests here must match the equivalent tests in noto.c
+ 
+@@ -232,7 +232,7 @@
+ ifneq ($(filter -DTOFU,$(XCFLAGS)),)
+   FONT_BIN := $(filter-out resources/fonts/noto/%.otf,$(FONT_BIN))
+   FONT_BIN := $(filter-out resources/fonts/noto/%.ttf,$(FONT_BIN))
+-  FONT_BIN := $(filter-out resources/fonts/sil/%.cff,$(FONT_BIN))
++  FONT_BIN := $(filter-out resources/fonts/sil/%.ttf,$(FONT_BIN))
+ endif
+ 
+ ifneq ($(filter -DTOFU_NOTO,$(XCFLAGS)),)
+@@ -241,7 +241,7 @@
+ endif
+ 
+ ifneq ($(filter -DTOFU_SIL,$(XCFLAGS)),)
+-  FONT_BIN := $(filter-out resources/fonts/sil/%.cff,$(FONT_BIN))
++  FONT_BIN := $(filter-out resources/fonts/sil/%.ttf,$(FONT_BIN))
+ endif
+ 
+ FONT_GEN := $(FONT_BIN:%=generated/%.c)
+--- a/source/fitz/font-table.h
++++ b/source/fitz/font-table.h
+@@ -73,10 +73,10 @@
+ #endif
+ 
+ #ifndef TOFU_SIL
+-FONT(sil,	CharisSIL_cff,			"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	REGULAR)
+-FONT(sil,	CharisSIL_Italic_cff,		"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	ITALIC)
+-FONT(sil,	CharisSIL_Bold_cff,		"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	BOLD)
+-FONT(sil,	CharisSIL_BoldItalic_cff,	"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	BOLD|ITALIC)
++FONT(sil,	CharisSIL_Regular_ttf,			"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	REGULAR)
++FONT(sil,	CharisSIL_Italic_ttf,		"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	ITALIC)
++FONT(sil,	CharisSIL_Bold_ttf,		"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	BOLD)
++FONT(sil,	CharisSIL_BoldItalic_ttf,	"Charis SIL",		ANY_SCRIPT,	FZ_LANG_UNSET,	NO_SUBFONT,	BOLD|ITALIC)
+ #endif
+ 
+ #ifndef TOFU_NOTO

@@ -1,0 +1,2 @@
+usr/lib/libmupdf.so.* usr/lib/${DEB_HOST_MULTIARCH}
+usr/lib/libmupdfcpp.so.* usr/lib/${DEB_HOST_MULTIARCH}

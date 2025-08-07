@@ -1420,6 +1420,7 @@ def system(
         caller=1,
         bufsize=-1,
         env_extra=None,
+        multiline=True,
         ):
     '''
     Runs a command like `os.system()` or `subprocess.*`, but with more
@@ -1494,6 +1495,10 @@ def system(
         env_extra:
             If not `None`, a `dict` with extra items that are added to the
             environment passed to the child process.
+        multiline:
+            If true (the default) we convert a multiline command into a single
+            command, but preserve the multiline representation in verbose
+            diagnostics.
 
     Returns:
 
@@ -1581,7 +1586,9 @@ def system(
                 out_frame_record = inspect.stack()[caller]
                 o_fn = lambda text: log( text, caller=out_frame_record, nv=False, raw=True)
             elif isinstance(o, int):
-                o_fn = lambda text: os.write( o, text)
+                def fn(text, o=o):
+                    os.write(o, text.encode())
+                o_fn = fn
             elif callable(o):
                 o_fn = o
             else:
@@ -1591,10 +1598,18 @@ def system(
                             ' or support o() or o.write().'
                             )
                 o_decoder = decoders_ensure(o.encoding)
-                def fn(text):
-                    o.write(text)
+                def o_fn(text, o=o):
+                    if errors == 'strict':
+                        o.write(text)
+                    else:
+                        # This is probably only necessary on Windows, where
+                        # sys.stdout can be cp1252 and will sometimes raise
+                        # UnicodeEncodeError. We hard-ignore these errors.
+                        try:
+                            o.write(text)
+                        except Exception as e:
+                            o.write(f'\n[Ignoring Exception: {e}]\n')
                     o.flush()   # Seems to be necessary on Windows.
-                o_fn = fn
             if o_prefix:
                 o_fn = StreamPrefix( o_fn, o_prefix).write
             if not o_decoder:
@@ -1612,6 +1627,19 @@ def system(
         stderr = subprocess.DEVNULL
     else:
         assert 0, f'Inconsistent out: {out}'
+
+    if multiline and '\n' in command:
+        command = textwrap.dedent(command)
+        lines = list()
+        for line in command.split( '\n'):
+            h = 0 if line.startswith( '#') else line.find(' #')
+            if h >= 0:
+                line = line[:h]
+            if line.strip():
+                line = line.rstrip()
+                lines.append(line)
+        sep = ' ' if platform.system() == 'Windows' else ' \\\n'
+        command = sep.join(lines)
 
     if verbose:
         log(f'running: {command_env_text( command, env_extra)}', nv=0, caller=caller+1)
@@ -1841,6 +1869,8 @@ def fs_update( text, filename, return_different=False):
 
     If `return_different` is true, we return existing contents if `filename`
     already exists and differs from `text`.
+
+    Otherwise we return true if file has changed.
     '''
     try:
         with open( filename) as f:
@@ -1850,12 +1880,12 @@ def fs_update( text, filename, return_different=False):
     if text != text0:
         if return_different and text0 is not None:
             return text
-        log( 'Updating:  ' + filename)
         # Write to temp file and rename, to ensure we are atomic.
         filename_temp = f'{filename}-jlib-temp'
         with open( filename_temp, 'w') as f:
             f.write( text)
         fs_rename( filename_temp, filename)
+        return True
 
 
 def fs_find_in_paths( name, paths=None, verbose=False):
@@ -2086,7 +2116,7 @@ def fs_newer( pattern, t):
     paths = glob.glob(pattern)
     paths_new = []
     for path in paths:
-        tt = os.path.getmtime(path)
+        tt = fs_mtime(path)
         if tt >= t:
             paths_new.append(path)
     return paths_new
@@ -2178,7 +2208,7 @@ def build(
         except Exception:
             command0 = None
         if command != command0:
-           reasons.append( f'command has changed: {command0!r} => {command!r}')
+           reasons.append( f'command has changed:\n{command0}\n=>\n{command}')
 
     if not reasons or all_reasons:
         reason = fs_any_newer( infiles, outfiles)
@@ -2243,9 +2273,11 @@ def link_l_flags( sos, ld_origin=None):
         dir_ = os.path.dirname( so)
         name = os.path.basename( so)
         assert name.startswith( 'lib'), f'name={name}'
-        if name.endswith( '.so'):
+        m = re.search( '(.so[.0-9]*)$', name)
+        if m:
+            l = len(m.group(1))
             dirs.add( dir_)
-            names.append( f'-l {name[3:-3]}')
+            names.append( f'-l {name[3:-l]}')
         elif darwin and name.endswith( '.dylib'):
             dirs.add( dir_)
             names.append( f'-l {name[3:-6]}')

@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -21,7 +21,6 @@
 // CA 94129, USA, for further information.
 
 #include "mupdf/fitz.h"
-#include "mupdf/ucdn.h"
 
 #include <string.h>
 #include <limits.h>
@@ -29,23 +28,28 @@
 
 /* Enumerate marked selection */
 
-static float dist2(float a, float b)
-{
-	return a * a + b * b;
-}
-
 static float hdist(fz_point *dir, fz_point *a, fz_point *b)
 {
 	float dx = b->x - a->x;
 	float dy = b->y - a->y;
-	return fz_abs(dx * dir->x + dy * dir->y);
+	return fz_abs(dx * dir->x - dy * dir->y);
 }
 
 static float vdist(fz_point *dir, fz_point *a, fz_point *b)
 {
 	float dx = b->x - a->x;
 	float dy = b->y - a->y;
-	return fz_abs(dx * dir->y + dy * dir->x);
+	return fz_abs(dx * dir->y - dy * dir->x);
+}
+
+static float vecdot(fz_point a, fz_point b)
+{
+	return a.x * b.x + a.y * b.y;
+}
+
+static float linedist(fz_point origin, fz_point dir, fz_point q)
+{
+	return vecdot(dir, fz_make_point(q.x - origin.x, q.y - origin.y));
 }
 
 static int line_length(fz_stext_line *line)
@@ -57,102 +61,79 @@ static int line_length(fz_stext_line *line)
 	return n;
 }
 
-static int
-direction_from_bidi_class(int bidiclass, int curdir)
+static float largest_size_in_line(fz_stext_line *line)
 {
-	switch (bidiclass)
-	{
-	/* strong */
-	case UCDN_BIDI_CLASS_L: return 1;
-	case UCDN_BIDI_CLASS_R: return -1;
-	case UCDN_BIDI_CLASS_AL: return -1;
-
-	/* weak */
-	case UCDN_BIDI_CLASS_EN:
-	case UCDN_BIDI_CLASS_ES:
-	case UCDN_BIDI_CLASS_ET:
-	case UCDN_BIDI_CLASS_AN:
-	case UCDN_BIDI_CLASS_CS:
-	case UCDN_BIDI_CLASS_NSM:
-	case UCDN_BIDI_CLASS_BN:
-		return curdir;
-
-	/* neutral */
-	case UCDN_BIDI_CLASS_B:
-	case UCDN_BIDI_CLASS_S:
-	case UCDN_BIDI_CLASS_WS:
-	case UCDN_BIDI_CLASS_ON:
-		return curdir;
-
-	/* embedding, override, pop ... we don't support them */
-	default:
-		return 0;
-	}
+	fz_stext_char *ch;
+	float size = 0;
+	for (ch = line->first_char; ch; ch = ch->next)
+		if (ch->size > size)
+			size = ch->size;
+	return size;
 }
 
-static int find_closest_in_line(fz_stext_line *line, int idx, fz_point p)
+static int find_closest_in_line(fz_stext_line *line, int idx, fz_point q)
 {
 	fz_stext_char *ch;
 	float closest_dist = 1e30f;
 	int closest_idx = idx;
-	int dirn = 0;
+	float d1, d2;
 
-	if (line->dir.x > line->dir.y)
-	{
-		if (p.y < line->bbox.y0)
-			return idx;
-		if (p.y > line->bbox.y1)
-			return idx + line_length(line);
-	}
-	else
-	{
-		if (p.x < line->bbox.x0)
-			return idx + line_length(line);
-		if (p.x > line->bbox.x1)
-			return idx;
-	}
+	float hsize = largest_size_in_line(line) / 2;
+	fz_point vdir = fz_make_point(-line->dir.y, line->dir.x);
+	fz_point hdir = line->dir;
+
+	// Compute mid-line from quads!
+	fz_point p1 = fz_make_point(
+		(line->first_char->quad.ll.x + line->first_char->quad.ul.x) / 2,
+		(line->first_char->quad.ll.y + line->first_char->quad.ul.y) / 2
+	);
+
+	// Signed distance perpendicular mid-line (positive is below)
+	float vdist = linedist(p1, vdir, q);
+	if (vdist < -hsize)
+		return idx;
+	if (vdist > hsize)
+		return idx + line_length(line);
 
 	for (ch = line->first_char; ch; ch = ch->next)
 	{
-		float mid_x = (ch->quad.ul.x + ch->quad.ur.x + ch->quad.ll.x + ch->quad.lr.x) / 4;
-		float mid_y = (ch->quad.ul.y + ch->quad.ur.y + ch->quad.ll.y + ch->quad.lr.y) / 4;
-		float this_dist = dist2(p.x - mid_x, p.y - mid_y);
-
-		dirn = direction_from_bidi_class(ucdn_get_bidi_class(ch->c), dirn);
-
-		if (this_dist < closest_dist)
+		if (ch->bidi & 1)
 		{
-			closest_dist = this_dist;
-			if (dirn == -1)
-			{
-				/* R2L */
-				if (line->dir.x > line->dir.y)
-					closest_idx = (p.x < mid_x) ? idx+1 : idx;
-				else
-					closest_idx = (p.y < mid_y) ? idx+1 : idx;
-			}
-			else
-			{
-				/* Neutral or L2R */
-				if (line->dir.x > line->dir.y)
-					closest_idx = (p.x < mid_x) ? idx : idx+1;
-				else
-					closest_idx = (p.y < mid_y) ? idx : idx+1;
-			}
+			d1 = fz_abs(linedist(ch->quad.lr, hdir, q));
+			d2 = fz_abs(linedist(ch->quad.ll, hdir, q));
 		}
+		else
+		{
+			d1 = fz_abs(linedist(ch->quad.ll, hdir, q));
+			d2 = fz_abs(linedist(ch->quad.lr, hdir, q));
+		}
+
+		if (d1 < closest_dist)
+		{
+			closest_dist = d1;
+			closest_idx = idx;
+		}
+
+		if (d2 < closest_dist)
+		{
+			closest_dist = d2;
+			closest_idx = idx + 1;
+		}
+
 		++idx;
 	}
+
 	return closest_idx;
 }
 
-static int find_closest_in_page(fz_stext_page *page, fz_point p)
+static int find_closest_in_page(fz_stext_page *page, fz_point q)
 {
 	fz_stext_block *block;
 	fz_stext_line *line;
 	fz_stext_line *closest_line = NULL;
 	int closest_idx = 0;
-	float closest_dist = 1e30f;
-	float this_dist;
+	float closest_vdist = 1e30f;
+	float closest_hdist = 1e30f;
 	int idx = 0;
 
 	for (block = page->first_block; block; block = block->next)
@@ -161,45 +142,74 @@ static int find_closest_in_page(fz_stext_page *page, fz_point p)
 			continue;
 		for (line = block->u.t.first_line; line; line = line->next)
 		{
-			fz_rect box = line->bbox;
-			if (p.x >= box.x0 && p.x <= box.x1)
+			float hsize = largest_size_in_line(line) / 2;
+			fz_point hdir = line->dir;
+			fz_point vdir = fz_make_point(-line->dir.y, line->dir.x);
+
+			// Compute mid-line from quads!
+			fz_point p1 = fz_make_point(
+				(line->first_char->quad.ll.x + line->first_char->quad.ul.x) / 2,
+				(line->first_char->quad.ll.y + line->first_char->quad.ul.y) / 2
+			);
+			fz_point p2 = fz_make_point(
+				(line->last_char->quad.lr.x + line->last_char->quad.ur.x) / 2,
+				(line->last_char->quad.lr.y + line->last_char->quad.ur.y) / 2
+			);
+
+			// Signed distance perpendicular mid-line (positive is below)
+			float vdist = linedist(p1, vdir, q);
+
+			// Signed distance tangent to mid-line from end points (positive is to end)
+			float hdist1 = linedist(p1, hdir, q);
+			float hdist2 = linedist(p2, hdir, q);
+
+			// Within the line itself!
+			if (vdist >= -hsize && vdist <= hsize && (hdist1 > 0) != (hdist2 > 0))
 			{
-				if (p.y < box.y0)
-					this_dist = dist2(box.y0 - p.y, 0);
-				else if (p.y > box.y1)
-					this_dist = dist2(p.y - box.y1, 0);
-				else
-					this_dist = 0;
-			}
-			else if (p.y >= box.y0 && p.y <= box.y1)
-			{
-				if (p.x < box.x0)
-					this_dist = dist2(box.x0 - p.x, 0);
-				else if (p.x > box.x1)
-					this_dist = dist2(p.x - box.x1, 0);
-				else
-					this_dist = 0;
-			}
-			else
-			{
-				float dul = dist2(p.x - box.x0, p.y - box.y0);
-				float dur = dist2(p.x - box.x1, p.y - box.y0);
-				float dll = dist2(p.x - box.x0, p.y - box.y1);
-				float dlr = dist2(p.x - box.x1, p.y - box.y1);
-				this_dist = fz_min(fz_min(dul, dur), fz_min(dll, dlr));
-			}
-			if (this_dist < closest_dist)
-			{
-				closest_dist = this_dist;
+				closest_vdist = 0;
+				closest_hdist = 0;
 				closest_line = line;
 				closest_idx = idx;
 			}
+			else
+			{
+				// Vertical distance from mid-line.
+				float avdist = fz_abs(vdist);
+
+				// Horizontal distance from closest end-point
+				float ahdist = fz_min(fz_abs(hdist1), fz_abs(hdist2));
+
+				if (avdist < hsize)
+				{
+					// Within extended line
+					if (ahdist <= closest_hdist)
+					{
+						closest_vdist = 0;
+						closest_hdist = ahdist;
+						closest_line = line;
+						closest_idx = idx;
+					}
+				}
+				else
+				{
+					// Outside line
+					// TODO: closest column?
+					if (avdist <= closest_vdist)
+					{
+						closest_vdist = avdist;
+						closest_line = line;
+						closest_idx = idx;
+					}
+				}
+			}
+
 			idx += line_length(line);
 		}
 	}
 
 	if (closest_line)
-		return find_closest_in_line(closest_line, closest_idx, p);
+		return find_closest_in_line(closest_line, closest_idx, q);
+
 	return 0;
 }
 
@@ -328,49 +338,50 @@ struct highlight
 	float hfuzz, vfuzz;
 };
 
+int same_point(fz_point a, fz_point b)
+{
+	int dx = fz_abs(a.x - b.x);
+	int dy = fz_abs(a.y - b.y);
+	return (dx < 0.1 && dy < 0.1);
+}
+
+int is_near(float hfuzz, float vfuzz, fz_point hdir, fz_point end, fz_point p1, fz_point p2)
+{
+	float v = fz_abs(linedist(end, fz_make_point(-hdir.y, hdir.x), p1));
+	float d1 = fz_abs(linedist(end, hdir, p1));
+	float d2 = fz_abs(linedist(end, hdir, p2));
+	return (v < vfuzz && d1 < hfuzz && d1 < d2);
+}
+
 static void on_highlight_char(fz_context *ctx, void *arg, fz_stext_line *line, fz_stext_char *ch)
 {
 	struct highlight *hits = arg;
-	float vfuzz = ch->size * hits->vfuzz;
-	float hfuzz = ch->size * hits->hfuzz;
+	float vfuzz = hits->vfuzz * ch->size;
+	float hfuzz = hits->hfuzz * ch->size;
+	fz_point dir = line->dir;
+
+	// Skip zero-extent quads
+	if (same_point(ch->quad.ll, ch->quad.lr))
+		return;
 
 	if (hits->len > 0)
 	{
 		fz_quad *end = &hits->box[hits->len-1];
-		float llh = hdist(&line->dir, &end->lr, &ch->quad.ll);
-		float llv = vdist(&line->dir, &end->lr, &ch->quad.ll);
-		float ulh = hdist(&line->dir, &end->ur, &ch->quad.ul);
-		float ulv = vdist(&line->dir, &end->ur, &ch->quad.ul);
-		float lrh = hdist(&line->dir, &end->ll, &ch->quad.lr);
-		float lrv = vdist(&line->dir, &end->ll, &ch->quad.lr);
-		float urh = hdist(&line->dir, &end->ul, &ch->quad.ur);
-		float urv = vdist(&line->dir, &end->ul, &ch->quad.ur);
 
-		if (lrh + lrv + urh + urv < llh + llv + ulh + ulv)
+		if (is_near(hfuzz, vfuzz, dir, end->lr, ch->quad.ll, ch->quad.lr) &&
+			is_near(hfuzz, vfuzz, dir, end->ur, ch->quad.ul, ch->quad.ur))
 		{
-			/* Merge to the right, if at all. */
-			if (lrh < hfuzz
-				&& lrv < vfuzz
-				&& urh < hfuzz
-				&& urv < vfuzz)
-			{
-				end->ul = ch->quad.ul;
-				end->ll = ch->quad.ll;
-				return;
-			}
+			end->ur = ch->quad.ur;
+			end->lr = ch->quad.lr;
+			return;
 		}
-		else
+
+		if (is_near(hfuzz, vfuzz, dir, end->ll, ch->quad.lr, ch->quad.ll) &&
+			is_near(hfuzz, vfuzz, dir, end->ul, ch->quad.ur, ch->quad.ul))
 		{
-			/* Merge to the left, if at all */
-			if (llh < hfuzz
-				&& llv < vfuzz
-				&& ulh < hfuzz
-				&& ulv < vfuzz)
-			{
-				end->ur = ch->quad.ur;
-				end->lr = ch->quad.lr;
-				return;
-			}
+			end->ul = ch->quad.ul;
+			end->ll = ch->quad.ll;
+			return;
 		}
 	}
 
@@ -568,38 +579,74 @@ static const char *find_string(const char *s, const char *needle, const char **e
 	return *endp = NULL, NULL;
 }
 
-static void add_hit_char(fz_context *ctx, struct highlight *hits, int *hit_mark, fz_stext_line *line, fz_stext_char *ch, int is_at_start)
+struct search_data
+{
+	/* Number of hits so far.*/
+	int count_quads;
+	int count_hits;
+	int max_quads;
+	int quad_fill;
+	fz_quad locals[32];
+	fz_quad *quads;
+	float hfuzz, vfuzz;
+	fz_search_callback_fn *cb;
+	void *opaque;
+};
+
+static int hit_char(fz_context *ctx, struct search_data *hits, fz_stext_line *line, fz_stext_char *ch, int is_at_start)
 {
 	float vfuzz = ch->size * hits->vfuzz;
 	float hfuzz = ch->size * hits->hfuzz;
 
-	if (hits->len > 0 && !is_at_start)
+	/* Can we continue an existing quad? */
+	if (hits->quad_fill > 0 && !is_at_start)
 	{
-		fz_quad *end = &hits->box[hits->len-1];
+		fz_quad *end = &hits->quads[hits->quad_fill-1];
 		if (hdist(&line->dir, &end->lr, &ch->quad.ll) < hfuzz
 			&& vdist(&line->dir, &end->lr, &ch->quad.ll) < vfuzz
 			&& hdist(&line->dir, &end->ur, &ch->quad.ul) < hfuzz
 			&& vdist(&line->dir, &end->ur, &ch->quad.ul) < vfuzz)
 		{
+			/* Yes */
 			end->ur = ch->quad.ur;
 			end->lr = ch->quad.lr;
-			return;
+			return 0;
 		}
 	}
 
-	if (hits->len < hits->cap)
+	if (is_at_start && hits->quad_fill > 0)
 	{
-		if (hit_mark)
-			hit_mark[hits->len] = is_at_start;
-		hits->box[hits->len] = ch->quad;
-		hits->len++;
+		/* Send the quads we have queued. */
+		hits->count_hits++;
+		if (hits->cb && hits->cb(ctx, hits->opaque, hits->quad_fill, hits->quads))
+			return 1;
+		hits->quad_fill = 0;
 	}
+
+	if (hits->quad_fill == hits->max_quads)
+	{
+		int newmax = hits->max_quads * 2;
+		if (hits->quads == hits->locals)
+		{
+			hits->quads = fz_malloc(ctx, sizeof(hits->quads[0]) * newmax);
+			memcpy(hits->quads, hits->locals, sizeof(hits->quads[0]) * nelem(hits->locals));
+		}
+		else
+		{
+			hits->quads = fz_realloc(ctx, hits->quads, sizeof(hits->quads[0]) * newmax);
+		}
+		hits->max_quads = newmax;
+	}
+	hits->quads[hits->quad_fill++] = ch->quad;
+	hits->count_quads++;
+
+	return 0;
 }
 
 int
-fz_search_stext_page(fz_context *ctx, fz_stext_page *page, const char *needle, int *hit_mark, fz_quad *quads, int max_quads)
+fz_search_stext_page_cb(fz_context *ctx, fz_stext_page *page, const char *needle, fz_search_callback_fn *cb, void *opaque)
 {
-	struct highlight hits;
+	struct search_data hits;
 	fz_stext_block *block;
 	fz_stext_line *line;
 	fz_stext_char *ch;
@@ -610,11 +657,15 @@ fz_search_stext_page(fz_context *ctx, fz_stext_page *page, const char *needle, i
 	if (strlen(needle) == 0)
 		return 0;
 
-	hits.len = 0;
-	hits.cap = max_quads;
-	hits.box = quads;
+	hits.count_quads = 0;
+	hits.count_hits = 0;
+	hits.quad_fill = 0;
+	hits.max_quads = nelem(hits.locals);
+	hits.quads = hits.locals;
 	hits.hfuzz = 0.2f; /* merge kerns but not large gaps */
 	hits.vfuzz = 0.1f;
+	hits.cb = cb;
+	hits.opaque = opaque;
 
 	buffer = fz_new_buffer_from_stext_page(ctx, page);
 	fz_try(ctx)
@@ -643,7 +694,8 @@ try_new_match:
 					{
 						if (haystack < end)
 						{
-							add_hit_char(ctx, &hits, hit_mark, line, ch, haystack == begin);
+							if (hit_char(ctx, &hits, line, ch, haystack == begin))
+								goto no_more_matches;
 						}
 						else
 						{
@@ -663,12 +715,68 @@ try_new_match:
 			assert(*haystack == '\n');
 			++haystack;
 		}
-no_more_matches:;
+no_more_matches:
+		/* Send the quads we have queued. */
+		if (hits.quad_fill)
+		{
+			hits.count_hits++;
+			if (hits.cb)
+				(void)hits.cb(ctx, hits.opaque, hits.quad_fill, hits.quads);
+		}
 	}
 	fz_always(ctx)
+	{
 		fz_drop_buffer(ctx, buffer);
+		if (hits.quads != hits.locals)
+			fz_free(ctx, hits.quads);
+	}
 	fz_catch(ctx)
 		fz_rethrow(ctx);
 
-	return hits.len;
+	return hits.count_hits;
+}
+
+typedef struct
+{
+	int *hit_mark;
+	fz_quad *quads;
+	int max_quads;
+	int fill;
+	int hit;
+} oldsearch_data;
+
+static int
+oldsearch_cb(fz_context *ctx, void *opaque, int num_quads, fz_quad *quads)
+{
+	oldsearch_data *data = (oldsearch_data *)opaque;
+	int i;
+	int hit = data->hit++;
+
+	for (i = 0; i < num_quads; i++)
+	{
+		if (data->fill == data->max_quads)
+			break;
+		if (data->hit_mark)
+			data->hit_mark[data->fill] = hit;
+		data->quads[data->fill] = quads[i];
+		data->fill++;
+	}
+
+	/* We never return 1 here, even if we fill up the buffer, as we
+	 * want the old API to get the correct total number of quads. */
+	return 0;
+}
+
+int
+fz_search_stext_page(fz_context *ctx, fz_stext_page *page, const char *needle, int *hit_mark, fz_quad *quads, int max_quads)
+{
+	oldsearch_data data;
+
+	data.hit_mark = hit_mark;
+	data.quads = quads;
+	data.max_quads = max_quads;
+	data.fill = 0;
+	data.hit = 0;
+	(void)fz_search_stext_page_cb(ctx, page, needle, oldsearch_cb, &data);
+	return data.fill; /* Return the number of quads we have read */
 }

@@ -14,6 +14,8 @@ Files-Excluded: thirdparty/curl
                 thirdparty/tesseract
                 thirdparty/zlib
                 thirdparty/freeglut
+                source/pdf/cmaps/*.h
+                generated/resources/fonts/urw/*.c
                 resources/fonts/droid/DroidSansFallback.ttf
                 resources/fonts/droid/DroidSansFallbackFull.ttf
                 resources/fonts/han/SourceHanSerif-Regular.ttc
@@ -57,12 +59,12 @@ License: Adobe-BSD-3-clause
  Redistributions in binary form must reproduce the above
  copyright notice, this list of conditions and the following
  disclaimer in the documentation and/or other materials
- provided with the distribution. 
+ provided with the distribution.
  .
  Neither the name of Adobe Systems Incorporated nor the names
  of its contributors may be used to endorse or promote
  products derived from this software without specific prior
- written permission. 
+ written permission.
  .
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -237,6 +239,7 @@ License: Apache-2.0
 
 Files: debian/*
 Copyright: 2010, Kan-Ru Chen <koster@debian.org>
+	   2024, 2025 Daniel Echeverri <epsilon@debian.org>
 License: GPL-3+
 
 License: GPL-3+

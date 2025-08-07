@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2023 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -48,7 +48,7 @@ pdf_test_outline(fz_context *ctx, pdf_document *doc, pdf_obj *dict, pdf_mark_bit
 	while (dict && pdf_is_dict(ctx, dict))
 	{
 		if (pdf_mark_bits_set(ctx, marks, dict))
-			fz_throw(ctx, FZ_ERROR_GENERIC, "Cycle detected in outlines");
+			fz_throw(ctx, FZ_ERROR_FORMAT, "Cycle detected in outlines");
 
 		parent = pdf_dict_get(ctx, dict, PDF_NAME(Parent));
 		prev = pdf_dict_get(ctx, dict, PDF_NAME(Prev));
@@ -56,16 +56,16 @@ pdf_test_outline(fz_context *ctx, pdf_document *doc, pdf_obj *dict, pdf_mark_bit
 
 		parent_diff = pdf_objcmp(ctx, parent, expected_parent);
 		prev_diff = pdf_objcmp(ctx, prev, expected_prev);
-		last_diff = next == NULL && pdf_objcmp(ctx, last, dict);
+		last_diff = next == NULL && pdf_objcmp_resolve(ctx, last, dict);
 
 		if (fixed == NULL)
 		{
 			if (parent_diff)
-				fz_throw(ctx, FZ_ERROR_GENERIC, "Outline parent pointer still bad or missing despite repair");
+				fz_throw(ctx, FZ_ERROR_FORMAT, "Outline parent pointer still bad or missing despite repair");
 			if (prev_diff)
-				fz_throw(ctx, FZ_ERROR_GENERIC, "Outline prev pointer still bad or missing despite repair");
+				fz_throw(ctx, FZ_ERROR_FORMAT, "Outline prev pointer still bad or missing despite repair");
 			if (last_diff)
-				fz_throw(ctx, FZ_ERROR_GENERIC, "Outline last pointer still bad or missing despite repair");
+				fz_throw(ctx, FZ_ERROR_FORMAT, "Outline last pointer still bad or missing despite repair");
 		}
 		else if (parent_diff || prev_diff || last_diff)
 		{
@@ -244,7 +244,7 @@ do_outline_update(fz_context *ctx, pdf_obj *obj, fz_outline_item *item, int is_n
 		pdf_obj *cobj = pdf_dict_get(ctx, parent, PDF_NAME(Count));
 		count = pdf_to_int(ctx, cobj);
 		if (open_delta || cobj == NULL)
-			pdf_dict_put_int(ctx, parent, PDF_NAME(Count), count >= 0 ? count + open_delta : count - open_delta);
+			pdf_dict_put_int(ctx, parent, PDF_NAME(Count), count > 0 ? count + open_delta : count - open_delta);
 		if (count < 0)
 			break;
 		parent = pdf_dict_get(ctx, parent, PDF_NAME(Parent));
@@ -282,10 +282,11 @@ pdf_outline_iterator_insert(fz_context *ctx, fz_outline_iterator *iter_, fz_outl
 	pdf_obj *prev;
 	pdf_obj *parent;
 	pdf_obj *outlines = NULL;
+	pdf_obj *newoutlines = NULL;
 	int result = 0;
 
 	fz_var(obj);
-	fz_var(outlines);
+	fz_var(newoutlines);
 
 	pdf_begin_operation(ctx, doc, "Insert outline item");
 
@@ -302,7 +303,7 @@ pdf_outline_iterator_insert(fz_context *ctx, fz_outline_iterator *iter_, fz_outl
 			if (outlines == NULL)
 			{
 				/* No outlines entry, better make one. */
-				outlines = pdf_add_new_dict(ctx, doc, 4);
+				newoutlines = outlines = pdf_add_new_dict(ctx, doc, 4);
 				pdf_dict_put(ctx, root, PDF_NAME(Outlines), outlines);
 				pdf_dict_put(ctx, outlines, PDF_NAME(Type), PDF_NAME(Outlines));
 			}
@@ -352,7 +353,7 @@ pdf_outline_iterator_insert(fz_context *ctx, fz_outline_iterator *iter_, fz_outl
 	fz_always(ctx)
 	{
 		pdf_drop_obj(ctx, obj);
-		pdf_drop_obj(ctx, outlines);
+		pdf_drop_obj(ctx, newoutlines);
 	}
 	fz_catch(ctx)
 	{
@@ -370,7 +371,7 @@ pdf_outline_iterator_update(fz_context *ctx, fz_outline_iterator *iter_, fz_outl
 	pdf_document *doc = (pdf_document *)iter->super.doc;
 
 	if (iter->modifier != MOD_NONE || iter->current == NULL)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't update a non-existent outline item!");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Can't update a non-existent outline item!");
 
 	pdf_begin_operation(ctx, doc, "Update outline item");
 
@@ -396,7 +397,7 @@ pdf_outline_iterator_del(fz_context *ctx, fz_outline_iterator *iter_)
 	int count;
 
 	if (iter->modifier != MOD_NONE || iter->current == NULL)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Can't delete a non-existent outline item!");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Can't delete a non-existent outline item!");
 
 	prev = pdf_dict_get(ctx, iter->current, PDF_NAME(Prev));
 	next = pdf_dict_get(ctx, iter->current, PDF_NAME(Next));
@@ -497,9 +498,7 @@ pdf_outline_iterator_item(fz_context *ctx, fz_outline_iterator *iter_)
 			iter->item.uri = Memento_label(pdf_parse_link_action(ctx, doc, obj, -1), "outline_uri");
 	}
 
-	obj = pdf_dict_get(ctx, iter->current, PDF_NAME(Count));
-
-	iter->item.is_open = (pdf_to_int(ctx, obj) > 0);
+	iter->item.is_open = pdf_dict_get_int(ctx, iter->current, PDF_NAME(Count)) > 0;
 
 	return &iter->item;
 }

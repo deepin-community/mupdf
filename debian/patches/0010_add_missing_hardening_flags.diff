@@ -1,0 +1,24 @@
+Description: Add missing hardening flags
+Author: Daniel Echeverri <epsilon@debian.org>
+Forwarded: not-needed
+Last-Update: 2024-10-20
+--- a/scripts/wrap/__main__.py
++++ b/scripts/wrap/__main__.py
+@@ -1717,6 +1717,8 @@
+                                     -I {include2}
+                                     {cpp_files_text}
+                                     {link_l_flags(libmupdf)}
++                                    {os.environ.get("CXXFLAGS") or ""}
++                                    {os.environ.get("CPPFLAGS") or ""}
+                                 ''')
+                                 )
+                         command_was_run = jlib.build(
+@@ -2212,6 +2214,8 @@
+                                     -DSWIG_PYTHON_SILENT_MEMLEAK
+                                     {flags_link}
+                                     {link_l_flags( sos)}
++                                    {os.environ.get("CXXFLAGS") or ""}
++                                    {os.environ.get("CPPFLAGS") or ""}
+                                 ''')
+                                 )
+                         infiles = [

@@ -1,3 +1,4 @@
-debian/tmp/usr/include
-debian/tmp/usr/lib
+usr/lib/libmupdf.so usr/lib/${DEB_HOST_MULTIARCH}
+usr/lib/libmupdfcpp.so usr/lib/${DEB_HOST_MULTIARCH}
 debian/mupdf.pc usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig
+debian/tmp/usr/include

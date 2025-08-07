@@ -19,12 +19,14 @@ sys.path.insert(0, os.path.abspath("."))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 # extensions = ["sphinx.ext.autodoc", "sphinx.ext.coverage", "sphinx.ext.ifconfig"]
-extensions = []
+extensions = ["sphinx_copybutton"]
 if hasattr(os, "uname") and os.uname()[0] in ("OpenBSD", "Darwin"):
     # rst2pdf is not available on OpenBSD or MacOS.
     pass
 else:
     extensions.append("rst2pdf.pdfbuilder")
+
+extensions.append("sphinx.ext.graphviz")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -147,7 +149,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = "images/mupdf-sidebar-logo.png"
+# html_logo = "_static/mupdf-sidebar-logo-dark.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -230,7 +232,7 @@ latex_documents = [
 ]
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = "images/mupdf-sidebar-logo.png"
+latex_logo = "_static/mupdf-sidebar-logo-dark.png"
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.

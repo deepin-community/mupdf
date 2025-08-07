@@ -1,6 +1,6 @@
-docs/logo/mupdf.png usr/share/icons/hicolor/48x48/apps
-debian/mupdf.desktop usr/share/applications
 debian/mupdf.applications usr/share/application-registry
-usr/bin/mupdf-x11 usr/lib/mupdf/
+debian/mupdf.desktop usr/share/applications
 usr/bin/mupdf
 usr/bin/mupdf-gl
+usr/bin/mupdf-x11 usr/lib/mupdf/
+usr/share/icons/hicolor/*

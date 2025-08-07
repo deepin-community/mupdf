@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2022 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -368,7 +368,7 @@ svg_cluster_advance(fz_context *ctx, const fz_text_span *span, int i, int end)
 	while (i + n < end && span->items[i + n].gid == -1)
 		++n;
 	if (n > 1)
-		return fz_advance_glyph(ctx, span->font, span->items[i].gid, span->wmode) / n;
+		return span->items[i].adv / n;
 	return 0; /* this value is never used (since n==1) */
 }
 
@@ -570,6 +570,9 @@ svg_dev_data_text(fz_context *ctx, fz_buffer *out, int c)
 			fz_append_string(ctx, out, "&quot;");
 		else if (c >= 32 && c < 127 && c != '<' && c != '>')
 			fz_append_byte(ctx, out, c);
+		else if (c >= 0xD800 && c <= 0xDFFF)
+			/* no surrogate characters in SVG */
+			fz_append_printf(ctx, out, "&#xFFFD;");
 		else
 			fz_append_printf(ctx, out, "&#x%04x;", c);
 		fz_append_byte(ctx, out, '"');
@@ -699,7 +702,7 @@ svg_dev_clip_path(fz_context *ctx, fz_device *dev, const fz_path *path, int even
 	svg_dev_ctm(ctx, sdev, ctm);
 	svg_dev_path(ctx, sdev, path);
 	if (even_odd)
-		fz_append_printf(ctx, out, " fill-rule=\"evenodd\"");
+		fz_append_printf(ctx, out, " clip-rule=\"evenodd\"");
 	fz_append_printf(ctx, out, "/>\n</clipPath>\n");
 	out = end_def(ctx, sdev, 0);
 	fz_append_printf(ctx, out, "<g clip-path=\"url(#clip_%d)\">\n", num);
@@ -1084,7 +1087,7 @@ svg_dev_begin_mask(fz_context *ctx, fz_device *dev, fz_rect bbox, int luminosity
 }
 
 static void
-svg_dev_end_mask(fz_context *ctx, fz_device *dev)
+svg_dev_end_mask(fz_context *ctx, fz_device *dev, fz_function *tr)
 {
 	svg_device *sdev = (svg_device*)dev;
 	fz_buffer *out = sdev->out;
@@ -1092,6 +1095,9 @@ svg_dev_end_mask(fz_context *ctx, fz_device *dev)
 
 	if (dev->container_len > 0)
 		mask = dev->container[dev->container_len-1].user;
+
+	if (tr)
+		fz_warn(ctx, "Ignoring Transfer Function");
 
 	fz_append_printf(ctx, out, "\"/>\n</mask>\n");
 	out = end_def(ctx, sdev, 0);
@@ -1280,7 +1286,7 @@ svg_dev_begin_layer(fz_context *ctx, fz_device *dev, const char *name)
 	fz_buffer *out = sdev->out;
 
 	sdev->layers++;
-	fz_append_printf(ctx, out, "<g id=\"layer_%d\" data-name=\"%s\">\n", sdev->layers, name);
+	fz_append_printf(ctx, out, "<g inkscape:groupmode=\"layer\" inkscape:label=%<>\n", name ? name : "");
 }
 
 static void
@@ -1314,8 +1320,9 @@ svg_dev_close_device(fz_context *ctx, fz_device *dev)
 	fz_write_string(ctx, out, "<svg");
 	fz_write_string(ctx, out, " xmlns=\"http://www.w3.org/2000/svg\"");
 	fz_write_string(ctx, out, " xmlns:xlink=\"http://www.w3.org/1999/xlink\"");
+	fz_write_string(ctx, out, " xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\"");
 	fz_write_string(ctx, out, " version=\"1.1\"");
-	fz_write_printf(ctx, out, " width=\"%gpt\" height=\"%gpt\" viewBox=\"0 0 %g %g\">\n",
+	fz_write_printf(ctx, out, " width=\"%g\" height=\"%g\" viewBox=\"0 0 %g %g\">\n",
 		sdev->page_width, sdev->page_height, sdev->page_width, sdev->page_height);
 
 	if (sdev->defs->len > 0)
