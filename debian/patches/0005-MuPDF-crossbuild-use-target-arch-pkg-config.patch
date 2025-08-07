@@ -5,25 +5,39 @@ Subject: MuPDF crossbuild use target arch pkg-config
 mupdf fails to cross build, because it uses the build architecture
 pkg-config and thus fails to find a pile of .pc files.
 ---
- Makerules | 78 ++++++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 40 insertions(+), 38 deletions(-)
+ Makerules | 96 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 49 insertions(+), 47 deletions(-)
 
 diff --git a/Makerules b/Makerules
-index b59780c..a5dc4e9 100644
+index 67ff962..e6df0a2 100644
 --- a/Makerules
 +++ b/Makerules
-@@ -9,6 +9,8 @@ ifeq ($(OS),)
-   OS := $(OS:Darwin=MACOS)
- endif
+@@ -11,6 +11,8 @@ endif
  
-+PKG_CONFIG ?= pkg-config
-+HAVE_LIBDL ?= yes
  WARNING_CFLAGS := -Wall -Wsign-compare
  
++PKG_CONFIG ?= pkg-config
++
  # Feature configuration options
-@@ -176,10 +178,10 @@ else ifeq ($(OS),MACOS)
-   else ifeq (, $(shell which pkg-config))
-     $(warning "No pkg-config found, install it for proper integration of libcrypto")
+ 
+ build_suffix :=
+@@ -114,7 +116,7 @@ ifeq ($(build),debug)
+   CFLAGS += -pipe -g
+   LDFLAGS += -g $(LDREMOVEUNREACH)
+ else ifeq ($(build),debian)
+-  CFLAGS += -pipe -O2 -DNDEBUG 
++  CFLAGS += -pipe -O2 -DNDEBUG
+   LDFLAGS += -g $(LDREMOVEUNREACH)
+ else ifeq ($(build),release)
+   CFLAGS += -pipe -O2 -DNDEBUG
+@@ -203,13 +205,13 @@ else ifeq ($(OS),MACOS)
+   ifneq ($(ARCHFLAGS),)
+     $(warning "MacOS with ARCHFLAGS set. Assuming we are building for arm64, and setting HAVE_LIBCRYPTO to no.")
+     HAVE_LIBCRYPTO := no
+-  else ifeq (, $(shell command -v pkg-config))
+-    $(warning "No pkg-config found, install it for proper integration of libcrypto")
++  else ifeq (, $(shell command -v $(PKG_CONFIG)))
++    $(warning "No $(PKG_CONFIG) found, install it for proper integration of libcrypto")
    else
 -    HAVE_LIBCRYPTO := $(shell pkg-config --exists 'libcrypto >= 1.1.0' && echo yes)
 +    HAVE_LIBCRYPTO := $(shell $(PKG_CONFIG) --exists 'libcrypto >= 1.1.0' && echo yes)
@@ -35,8 +49,8 @@ index b59780c..a5dc4e9 100644
      endif
    endif
  
-@@ -193,51 +195,51 @@ else ifeq ($(OS),Linux)
-     LDFLAGS += -sTOTAL_MEMORY=48MB
+@@ -219,82 +221,82 @@ else ifeq ($(LINUX_OR_OPENBSD),yes)
+     HAVE_OBJCOPY := yes
    endif
  
 -  ifeq ($(shell pkg-config --exists freetype2 && echo yes),yes)
@@ -107,6 +121,15 @@ index b59780c..a5dc4e9 100644
 +	SYS_TESSERACT_LIBS := $(shell $(PKG_CONFIG) --libs tesseract)
    endif
  
+-  HAVE_SYS_LIBARCHIVE := $(shell pkg-config --exists 'libarchive' && echo yes)
++  HAVE_SYS_LIBARCHIVE := $(shell $(PKG_CONFIG) --exists 'libarchive' && echo yes)
+   ifeq ($(HAVE_SYS_LIBARCHIVE),yes)
+-	SYS_LIBARCHIVE_CFLAGS := $(shell pkg-config --cflags libarchive)
+-	SYS_LIBARCHIVE_LIBS := $(shell pkg-config --libs libarchive)
++	SYS_LIBARCHIVE_CFLAGS := $(shell $(PKG_CONFIG) --cflags libarchive)
++	SYS_LIBARCHIVE_LIBS := $(shell $(PKG_CONFIG) --libs libarchive)
+   endif
+ 
 -  HAVE_SYS_CURL := $(shell pkg-config --exists libcurl && echo yes)
 +  HAVE_SYS_CURL := $(shell $(PKG_CONFIG) --exists libcurl && echo yes)
    ifeq ($(HAVE_SYS_CURL),yes)
@@ -117,8 +140,16 @@ index b59780c..a5dc4e9 100644
    endif
  
    HAVE_GLUT := yes
-@@ -246,18 +248,18 @@ else ifeq ($(OS),Linux)
- 	SYS_GLUT_LIBS := -lglut -lGL
+   ifeq ($(HAVE_GLUT),yes)
+     ifeq ($(OS),OpenBSD)
+-      SYS_GLUT_CFLAGS := $(shell pkg-config --cflags glut gl)
+-      SYS_GLUT_LIBS := $(shell pkg-config --libs glut gl)
++      SYS_GLUT_CFLAGS := $(shell $(PKG_CONFIG) --cflags glut gl)
++      SYS_GLUT_LIBS := $(shell $(PKG_CONFIG) --libs glut gl)
+     else
+       SYS_GLUT_CFLAGS :=
+       SYS_GLUT_LIBS := -lglut -lGL
+     endif
    endif
  
 -  HAVE_X11 := $(shell pkg-config --exists x11 xext && echo yes)
@@ -131,7 +162,8 @@ index b59780c..a5dc4e9 100644
    endif
  
    ifeq ($(HAVE_LIBCRYPTO),)
-     HAVE_LIBCRYPTO := $(shell pkg-config --exists 'libcrypto >= 1.1.0' && echo yes)
+-    HAVE_LIBCRYPTO := $(shell pkg-config --exists 'libcrypto >= 1.1.0' && echo yes)
++    HAVE_LIBCRYPTO := $(shell $(PKG_CONFIG) --exists 'libcrypto >= 1.1.0' && echo yes)
    endif
    ifeq ($(HAVE_LIBCRYPTO),yes)
 -	LIBCRYPTO_CFLAGS := $(shell pkg-config --cflags libcrypto) -DHAVE_LIBCRYPTO

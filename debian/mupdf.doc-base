@@ -1,0 +1,9 @@
+Document: mupdf-manual
+Title: MuPDF is a lightweight PDF, XPS, and E-book viewer
+Abstract: This documentation describes what Mupdf is
+ and how it can be used
+Section: Viewers
+
+Format: HTML
+Index: /usr/share/doc/mupdf/index.html
+Files: /usr/share/doc/mupdf/*

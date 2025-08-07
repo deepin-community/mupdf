@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2023 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -87,8 +87,10 @@ static JavaVM *jvm = NULL;
 
 /* All the cached classes/mids/fids we need. */
 
+static jclass cls_AbortException;
 static jclass cls_AlertResult;
 static jclass cls_Archive;
+static jclass cls_ArrayList;
 static jclass cls_ArrayOfQuad;
 static jclass cls_Buffer;
 static jclass cls_ColorSpace;
@@ -276,6 +278,9 @@ static jfieldID fid_Text_pointer;
 static jfieldID fid_TreeArchive_pointer;
 
 static jmethodID mid_Archive_init;
+static jmethodID mid_ArrayList_add;
+static jmethodID mid_ArrayList_toArray;
+static jmethodID mid_ArrayList_init;
 static jmethodID mid_Buffer_init;
 static jmethodID mid_ColorSpace_fromPointer;
 static jmethodID mid_ColorSpace_init;
@@ -570,6 +575,18 @@ static int check_enums()
 	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IS_TOGGLE_NO_VIEW == PDF_ANNOT_IS_TOGGLE_NO_VIEW;
 	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IS_LOCKED_CONTENTS == PDF_ANNOT_IS_LOCKED_CONTENTS;
 
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_DEFAULT == PDF_ANNOT_IT_DEFAULT;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_FREETEXT_CALLOUT == PDF_ANNOT_IT_FREETEXT_CALLOUT;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_FREETEXT_TYPEWRITER == PDF_ANNOT_IT_FREETEXT_TYPEWRITER;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_LINE_ARROW == PDF_ANNOT_IT_LINE_ARROW;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_LINE_DIMENSION == PDF_ANNOT_IT_LINE_DIMENSION;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_POLYLINE_DIMENSION == PDF_ANNOT_IT_POLYLINE_DIMENSION;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_POLYGON_CLOUD == PDF_ANNOT_IT_POLYGON_CLOUD;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_POLYGON_DIMENSION == PDF_ANNOT_IT_POLYGON_DIMENSION;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_STAMP_IMAGE == PDF_ANNOT_IT_STAMP_IMAGE;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_STAMP_SNAPSHOT == PDF_ANNOT_IT_STAMP_SNAPSHOT;
+	valid &= com_artifex_mupdf_fitz_PDFAnnotation_IT_UNKNOWN == PDF_ANNOT_IT_UNKNOWN;
+
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_UNSET == FZ_LANG_UNSET;
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_ur == FZ_LANG_ur;
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_urd == FZ_LANG_urd;
@@ -578,6 +595,17 @@ static int check_enums()
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_zh == FZ_LANG_zh;
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_zh_Hans == FZ_LANG_zh_Hans;
 	valid &= com_artifex_mupdf_fitz_PDFDocument_LANGUAGE_zh_Hant == FZ_LANG_zh_Hant;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_NOT_ZUGFERD == PDF_NOT_ZUGFERD;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_COMFORT == PDF_ZUGFERD_COMFORT;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_BASIC == PDF_ZUGFERD_BASIC;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_EXTENDED == PDF_ZUGFERD_EXTENDED;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_BASIC_WL == PDF_ZUGFERD_BASIC_WL;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_MINIMUM == PDF_ZUGFERD_MINIMUM;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_XRECHNUNG == PDF_ZUGFERD_XRECHNUNG;
+	valid &= com_artifex_mupdf_fitz_PDFDocument_ZUGFERD_UNKNOWN == PDF_ZUGFERD_UNKNOWN;
+
+	valid &= com_artifex_mupdf_fitz_Rect_MIN_INF_RECT == FZ_MIN_INF_RECT;
+	valid &= com_artifex_mupdf_fitz_Rect_MAX_INF_RECT == FZ_MAX_INF_RECT;
 
 	valid &= com_artifex_mupdf_fitz_LinkDestination_LINK_DEST_FIT == FZ_LINK_DEST_FIT;
 	valid &= com_artifex_mupdf_fitz_LinkDestination_LINK_DEST_FIT_B == FZ_LINK_DEST_FIT_B;
@@ -617,34 +645,56 @@ static int check_enums()
 	valid &= com_artifex_mupdf_fitz_PDFWidget_TX_FORMAT_DATE == PDF_WIDGET_TX_FORMAT_DATE;
 	valid &= com_artifex_mupdf_fitz_PDFWidget_TX_FORMAT_TIME == PDF_WIDGET_TX_FORMAT_TIME;
 
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_FIELD_IS_READ_ONLY == PDF_FIELD_IS_READ_ONLY;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_FIELD_IS_REQUIRED == PDF_FIELD_IS_REQUIRED;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_FIELD_IS_NO_EXPORT == PDF_FIELD_IS_NO_EXPORT;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_FIELD_IS_READ_ONLY == PDF_FIELD_IS_READ_ONLY;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_FIELD_IS_REQUIRED == PDF_FIELD_IS_REQUIRED;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_FIELD_IS_NO_EXPORT == PDF_FIELD_IS_NO_EXPORT;
 
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_TX_FIELD_IS_MULTILINE == PDF_TX_FIELD_IS_MULTILINE;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_TX_FIELD_IS_PASSWORD == PDF_TX_FIELD_IS_PASSWORD;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_TX_FIELD_IS_COMB == PDF_TX_FIELD_IS_COMB;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_TX_FIELD_IS_MULTILINE == PDF_TX_FIELD_IS_MULTILINE;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_TX_FIELD_IS_PASSWORD == PDF_TX_FIELD_IS_PASSWORD;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_TX_FIELD_IS_COMB == PDF_TX_FIELD_IS_COMB;
 
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF == PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_BTN_FIELD_IS_RADIO == PDF_BTN_FIELD_IS_RADIO;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_BTN_FIELD_IS_PUSHBUTTON == PDF_BTN_FIELD_IS_PUSHBUTTON;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_BTN_FIELD_IS_NO_TOGGLE_TO_OFF == PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_BTN_FIELD_IS_RADIO == PDF_BTN_FIELD_IS_RADIO;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_BTN_FIELD_IS_PUSHBUTTON == PDF_BTN_FIELD_IS_PUSHBUTTON;
 
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_CH_FIELD_IS_COMBO == PDF_CH_FIELD_IS_COMBO;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_CH_FIELD_IS_EDIT == PDF_CH_FIELD_IS_EDIT;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_CH_FIELD_IS_SORT == PDF_CH_FIELD_IS_SORT;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_CH_FIELD_IS_MULTI_SELECT == PDF_CH_FIELD_IS_MULTI_SELECT;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_CH_FIELD_IS_COMBO == PDF_CH_FIELD_IS_COMBO;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_CH_FIELD_IS_EDIT == PDF_CH_FIELD_IS_EDIT;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_CH_FIELD_IS_SORT == PDF_CH_FIELD_IS_SORT;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_CH_FIELD_IS_MULTI_SELECT == PDF_CH_FIELD_IS_MULTI_SELECT;
 
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_LABELS == PDF_SIGNATURE_SHOW_LABELS;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_DN == PDF_SIGNATURE_SHOW_DN;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_DATE == PDF_SIGNATURE_SHOW_DATE;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_TEXT_NAME == PDF_SIGNATURE_SHOW_TEXT_NAME;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_GRAPHIC_NAME == PDF_SIGNATURE_SHOW_GRAPHIC_NAME;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_SHOW_LOGO == PDF_SIGNATURE_SHOW_LOGO;
-	valid &= com_artifex_mupdf_fitz_PDFWidget_PDF_SIGNATURE_DEFAULT_APPEARANCE == PDF_SIGNATURE_DEFAULT_APPEARANCE;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_LABELS == PDF_SIGNATURE_SHOW_LABELS;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_DN == PDF_SIGNATURE_SHOW_DN;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_DATE == PDF_SIGNATURE_SHOW_DATE;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_TEXT_NAME == PDF_SIGNATURE_SHOW_TEXT_NAME;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_GRAPHIC_NAME == PDF_SIGNATURE_SHOW_GRAPHIC_NAME;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_SHOW_LOGO == PDF_SIGNATURE_SHOW_LOGO;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_DEFAULT_APPEARANCE == PDF_SIGNATURE_DEFAULT_APPEARANCE;
+
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_OKAY == PDF_SIGNATURE_ERROR_OKAY;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_NO_SIGNATURES == PDF_SIGNATURE_ERROR_NO_SIGNATURES;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_NO_CERTIFICATE == PDF_SIGNATURE_ERROR_NO_CERTIFICATE;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_DIGEST_FAILURE == PDF_SIGNATURE_ERROR_DIGEST_FAILURE;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_SELF_SIGNED == PDF_SIGNATURE_ERROR_SELF_SIGNED;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_SELF_SIGNED_IN_CHAIN == PDF_SIGNATURE_ERROR_SELF_SIGNED_IN_CHAIN;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_NOT_TRUSTED == PDF_SIGNATURE_ERROR_NOT_TRUSTED;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_NOT_SIGNED == PDF_SIGNATURE_ERROR_NOT_SIGNED;
+	valid &= com_artifex_mupdf_fitz_PDFWidget_SIGNATURE_ERROR_UNKNOWN == PDF_SIGNATURE_ERROR_UNKNOWN;
 
 	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_IMAGE_NONE == PDF_REDACT_IMAGE_NONE;
 	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_IMAGE_REMOVE == PDF_REDACT_IMAGE_REMOVE;
 	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_IMAGE_PIXELS == PDF_REDACT_IMAGE_PIXELS;
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_IMAGE_REMOVE_UNLESS_INVISIBLE == PDF_REDACT_IMAGE_REMOVE_UNLESS_INVISIBLE;
+
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_LINE_ART_NONE == PDF_REDACT_LINE_ART_NONE;
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_LINE_ART_REMOVE_IF_TOUCHED == PDF_REDACT_LINE_ART_REMOVE_IF_TOUCHED;
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_LINE_ART_REMOVE_IF_COVERED == PDF_REDACT_LINE_ART_REMOVE_IF_COVERED;
+
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_TEXT_REMOVE == PDF_REDACT_TEXT_REMOVE;
+	valid &= com_artifex_mupdf_fitz_PDFPage_REDACT_TEXT_NONE == PDF_REDACT_TEXT_NONE;
+
+	valid &= com_artifex_mupdf_fitz_Pixmap_DESKEW_BORDER_INCREASE == FZ_DESKEW_BORDER_INCREASE;
+	valid &= com_artifex_mupdf_fitz_Pixmap_DESKEW_BORDER_MAINTAIN == FZ_DESKEW_BORDER_MAINTAIN;
+	valid &= com_artifex_mupdf_fitz_Pixmap_DESKEW_BORDER_DECREASE == FZ_DESKEW_BORDER_DECREASE;
 
 	return valid ? 1 : 0;
 }
@@ -661,10 +711,14 @@ static void jni_throw_imp(JNIEnv *env, jclass cls, const char *mess)
 
 static void jni_rethrow_imp(JNIEnv *env, fz_context *ctx)
 {
-	if (fz_caught(ctx) == FZ_ERROR_TRYLATER)
-		jni_throw_imp(env, cls_TryLaterException, fz_caught_message(ctx));
+	int code;
+	const char *message = fz_convert_error(ctx, &code);
+	if (code == FZ_ERROR_TRYLATER)
+		jni_throw_imp(env, cls_TryLaterException, message);
+	else if (code == FZ_ERROR_ABORT)
+		jni_throw_imp(env, cls_AbortException, message);
 	else
-		jni_throw_imp(env, cls_RuntimeException, fz_caught_message(ctx));
+		jni_throw_imp(env, cls_RuntimeException, message);
 }
 
 #define jni_rethrow_void(env, ctx) do { jni_rethrow_imp(env, ctx); return; } while (0);
@@ -1249,6 +1303,7 @@ static int find_fids(JNIEnv *env)
 	mid_TreeArchive_init = get_method(&err, env, "<init>", "(J)V");
 	fid_TreeArchive_pointer = get_field(&err, env, "pointer", "J");
 
+	cls_AbortException = get_class(&err, env, PKG"AbortException");
 	cls_TryLaterException = get_class(&err, env, PKG"TryLaterException");
 
 	/* Standard Java classes */
@@ -1267,6 +1322,11 @@ static int find_fids(JNIEnv *env)
 	cls_UnsupportedOperationException = get_class(&err, env, "java/lang/UnsupportedOperationException");
 
 	cls_OutOfMemoryError = get_class(&err, env, "java/lang/OutOfMemoryError");
+
+	cls_ArrayList = get_class(&err, env, "java/util/ArrayList");
+	mid_ArrayList_init = get_method(&err, env, "<init>", "()V");
+	mid_ArrayList_add = get_method(&err, env, "add", "(Ljava/lang/Object;)Z");
+	mid_ArrayList_toArray = get_method(&err, env, "toArray", "([Ljava/lang/Object;)[Ljava/lang/Object;");
 
 	if (err)
 	{
@@ -1306,8 +1366,10 @@ static void jni_detach_thread(jboolean detach)
 
 static void lose_fids(JNIEnv *env)
 {
+	(*env)->DeleteGlobalRef(env, cls_AbortException);
 	(*env)->DeleteGlobalRef(env, cls_AlertResult);
 	(*env)->DeleteGlobalRef(env, cls_Archive);
+	(*env)->DeleteGlobalRef(env, cls_ArrayList);
 	(*env)->DeleteGlobalRef(env, cls_ArrayOfQuad);
 	(*env)->DeleteGlobalRef(env, cls_Buffer);
 	(*env)->DeleteGlobalRef(env, cls_ColorSpace);
@@ -1423,6 +1485,7 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved)
 #endif
 
 #include "jni/wrap.c"
+#include "jni/helpers.c"
 
 #include "jni/context.c"
 #include "jni/device.c"

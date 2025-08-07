@@ -85,6 +85,9 @@ pdf_load_type3_font(fz_context *ctx, pdf_document *doc, pdf_obj *rdb, pdf_obj *d
 
 		fz_set_font_bbox(ctx, font, bbox.x0, bbox.y0, bbox.x1, bbox.y1);
 
+		font->ascender = bbox.y1;
+		font->descender = bbox.y0;
+
 		/* Encoding */
 
 		for (i = 0; i < 256; i++)
@@ -241,6 +244,8 @@ void pdf_load_type3_glyphs(fz_context *ctx, pdf_document *doc, pdf_font_desc *fo
 	fz_catch(ctx)
 	{
 		fz_rethrow_if(ctx, FZ_ERROR_TRYLATER);
-		fz_warn(ctx, "Type3 glyph load failed: %s", fz_caught_message(ctx));
+		fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
+		fz_report_error(ctx);
+		fz_warn(ctx, "type3 glyph load failed");
 	}
 }
