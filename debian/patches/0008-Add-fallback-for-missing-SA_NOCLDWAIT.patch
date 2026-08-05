@@ -11,11 +11,9 @@ there is not much the program can do about them.
  platform/gl/gl-main.c | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
-diff --git a/platform/gl/gl-main.c b/platform/gl/gl-main.c
-index b2eb0a4..b2ba019 100644
 --- a/platform/gl/gl-main.c
 +++ b/platform/gl/gl-main.c
-@@ -3089,6 +3089,11 @@ static void signal_handler(int signal)
+@@ -3083,6 +3083,11 @@
  {
  	if (signal == SIGHUP)
  		reloadrequested = 1;
@@ -27,7 +25,7 @@ index b2eb0a4..b2ba019 100644
  }
  #endif
  
-@@ -3106,11 +3111,18 @@ int main(int argc, char **argv)
+@@ -3100,11 +3105,18 @@
  #ifndef _WIN32
  
  	/* Never wait for termination of child processes. */

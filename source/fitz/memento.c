@@ -1412,7 +1412,7 @@ static void Memento_removeBlockSplay(Memento_Blocks    *blks,
             b->parent->left = replacement;
         else
             b->parent->right = replacement;
-            VALGRIND_MAKE_MEM_NOACCESS(b->parent, sizeof(*b->parent));
+        VALGRIND_MAKE_MEM_NOACCESS(b->parent, sizeof(*b->parent));
     } else {
         VALGRIND_MAKE_MEM_DEFINED(&blks->top, sizeof(blks->top));
         blks->top = replacement;
@@ -2054,6 +2054,46 @@ static void Memento_listBlocksInternal(int include_known_leaks)
 void Memento_listBlocks()
 {
     Memento_listBlocksInternal(1 /*include_known_leaks*/);
+}
+
+void Memento_listLargeBlocks()
+{
+    Memento_BlkHeader *b;
+#define LARGE_BLOCKS 100
+    Memento_BlkHeader *blocks[LARGE_BLOCKS];
+    int i, n = 0;
+
+    MEMENTO_LOCK();
+
+    for (b = memento.used.head; b; b = b->next) {
+        size_t size = b->rawsize;
+        if (n < LARGE_BLOCKS || size > blocks[n - 1]->rawsize)
+        {
+            /* We need to insert this block into our list. */
+            int l = 0, r = n;
+            while (l < r)
+            {
+                int m = (l + r) >> 1;
+                if (size > blocks[m]->rawsize)
+                    r = m;
+                else if (blocks[m]->rawsize > size)
+                    l = m+1;
+                else
+                    l = r = m+1;
+            }
+            if (n < LARGE_BLOCKS)
+                n++;
+            if (l < n-1)
+                memmove(&blocks[l+1], &blocks[l], sizeof(void *) * (n - l - 1));
+            if (l < LARGE_BLOCKS)
+                blocks[l] = b;
+        }
+    }
+
+    for (i = 0; i < n; i++)
+        blockDisplay(blocks[i], 0);
+
+    MEMENTO_UNLOCK();
 }
 
 static int Memento_listNewBlock(Memento_BlkHeader *b,
@@ -4630,6 +4670,10 @@ void (Memento_listBlocks)(void)
 }
 
 void (Memento_listNewBlocks)(void)
+{
+}
+
+void (Memento_listLargeBlocks)(void)
 {
 }
 

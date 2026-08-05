@@ -1,4 +1,4 @@
-.. Copyright (C) 2001-2023 Artifex Software, Inc.
+.. Copyright (C) 2001-2024 Artifex Software, Inc.
 .. All Rights Reserved.
 
 ----
@@ -52,7 +52,7 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 .. method:: toPixmap(transform, colorspace, alpha)
 
-    Render the annotation into a `Pixmap`, using the transform and colorspace.
+    Render the annotation into a :ref:`Pixmap <mutool_object_pixmap>`, using the transform and colorspace.
 
     :arg transform: `[a,b,c,d,e,f]`. The transform :ref:`matrix<mutool_run_js_api_matrix>`.
     :arg colorspace: `ColorSpace`.
@@ -115,8 +115,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 .. method:: setAppearance(appearance, state, transform, displayList)
 
-
-
     Set the annotation appearance stream for the given appearance. The desired appearance is given as a transform along with a display list.
 
     :arg appearance: `String` Appearance stream ("N", "R" or "D").
@@ -132,8 +130,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 .. method:: setAppearance(appearance, state, transform, bbox, resources, contents)
 
-
-
     Set the annotation appearance stream for the given appearance. The desired appearance is given as a transform along with a bounding box, a :title:`PDF` dictionary of resources and a content stream.
 
     :arg appearance: `String` Appearance stream ("N", "R" or "D").
@@ -148,6 +144,21 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
     .. code-block:: javascript
 
         annotation.setAppearance("N", null, mupdf.Matrix.identity, [0,0,100,100], resources, contents);
+
+.. method:: setAppearance(image)
+
+
+
+    Set a stamp annotation's appearance to that of an image.
+
+    :arg image: `Image` containing the desired appearance.
+
+    |example_tag|
+
+    .. code-block:: javascript
+
+        var img = new Image("photo.jpg");
+        annotation.setAppearance(img);
 
 
 **Appearance stream values**
@@ -210,8 +221,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 .. method:: getHiddenForEditing()
 
-    |mutool_tag|
-
     Get a special annotation hidden flag for editing. This flag prevents the annotation from being rendered.
 
     :return: `Boolean`.
@@ -223,8 +232,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
         var hidden = annotation.getHiddenForEditing();
 
 .. method:: setHiddenForEditing(hidden)
-
-    |mutool_tag|
 
     Set a special annotation hidden flag for editing. This flag prevents the annotation from being rendered.
 
@@ -366,8 +373,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 .. method:: getColor()
 
-
-
     Get the annotation color, represented as an array of 1, 3, or 4 component values.
 
     :return: The :ref:`color value<mutool_run_js_api_colors>`.
@@ -381,8 +386,6 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 
 .. method:: setColor(color)
-
-
 
     Set the annotation color, represented as an array of 1, 3, or 4 component values.
 
@@ -499,7 +502,7 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
     Set the annotation quadding (justification).
 
-    :arg value: Quadding value, `0` for left-justified, `1` for centered, `2` for right-justified.
+    :arg value: `Number`. Quadding value, `0` for left-justified, `1` for centered, `2` for right-justified.
 
     |example_tag|
 
@@ -541,11 +544,23 @@ To get the annotations on a page see: :ref:`PDFPage getAnnotations()<mutool_run_
 
 These properties are only present for some annotation types, so support for them must be checked before use.
 
+.. method:: hasRect()
+
+    Returns whether the annotation is capable of supporting a bounding box.
+
+    :return: `Boolean`.
+
+    |example_tag|
+
+    .. code-block:: javascript
+
+        var hasRect = annotation.hasRect();
+
 .. method:: getRect()
 
     Get the annotation bounding box.
 
-    :return: `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
+    :return: `Array`. `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
 
     |example_tag|
 
@@ -559,7 +574,7 @@ These properties are only present for some annotation types, so support for them
 
     Set the annotation bounding box.
 
-    :arg rect: `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
+    :arg rect: `Array`. `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
 
     |example_tag|
 
@@ -572,9 +587,9 @@ These properties are only present for some annotation types, so support for them
 
 
 
-    Get the default text appearance used for free text annotations.
+    Get the :ref:`default text appearance <mutool_run_js_api_object_default_appearance_text_object>` used for free text annotations.
 
-    :return: `{font:String, size:Integer, color:[r,g,b]}` Returns an object with the key/value pairs.
+    :return: `{font:String, size:Integer, color:[r,g,b]}` Returns :ref:`a default text appearance <mutool_run_js_api_object_default_appearance_text_object>` with the key/value pairs.
 
     |example_tag|
 
@@ -582,16 +597,15 @@ These properties are only present for some annotation types, so support for them
 
         var appearance = annotation.getDefaultAppearance();
 
-    |jamie_todo| how about describing the DefaultApperance as a separate object similar to the link destination?
 
 
 .. method:: setDefaultAppearance(font, size, color)
 
     Set the default text appearance used for free text annotations.
 
-    :arg font: `String`.
+    :arg font: `String` ("Helv" = Helvetica, "TiRo" = Times New Roman, "Cour" = Courier).
     :arg size: `Integer`.
-    :arg color: The :ref:`color value<mutool_run_js_api_colors>`.
+    :arg color: `Array`. The :ref:`color value<mutool_run_js_api_colors>`.
 
     |example_tag|
 
@@ -600,11 +614,10 @@ These properties are only present for some annotation types, so support for them
         annotation.setDefaultAppearance("Helv", 16, [0,0,0]);
 
 
+
 .. method:: hasInteriorColor()
 
-    |mutool_tag_wasm_soon|
-
-    Checks whether the annotation has support for an interior color.
+    Returns whether the annotation has support for an interior color.
 
     :return: `Boolean`.
 
@@ -614,7 +627,7 @@ These properties are only present for some annotation types, so support for them
 
         var hasInteriorColor = annotation.hasInteriorColor();
 
-    .. |tor_todo| WASM TypeError: annotation.hasInteriorColor is not a function
+
 
 
 .. method:: getInteriorColor()
@@ -639,7 +652,7 @@ These properties are only present for some annotation types, so support for them
 
     Sets the annotation interior color.
 
-    :arg color: The :ref:`color value<mutool_run_js_api_colors>`.
+    :arg color: `Array`. The :ref:`color value<mutool_run_js_api_colors>`.
 
     |example_tag|
 
@@ -654,9 +667,9 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: hasAuthor()
 
-    |mutool_tag_wasm_soon|
 
-    Checks whether the annotation has an author.
+    Returns whether the annotation has support for an author.
+
 
     :return: `Boolean`.
 
@@ -666,7 +679,7 @@ These properties are only present for some annotation types, so support for them
 
         var hasAuthor = annotation.hasAuthor();
 
-    .. |tor_todo| WASM TypeError: annotation.hasAuthor is not a function
+
 
 .. method:: getAuthor()
 
@@ -696,7 +709,6 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: hasLineEndingStyles()
 
-    |mutool_tag_wasm_soon|
 
     Checks the support for :ref:`line ending styles<mutool_pdf_annotation_line_ending_styles>`.
 
@@ -708,7 +720,7 @@ These properties are only present for some annotation types, so support for them
 
         var hasLineEndingStyles = annotation.hasLineEndingStyles();
 
-    .. |tor_todo| WASM TypeError: annotation.hasLineEndingStyles is not a function
+
 
 
 .. method:: getLineEndingStyles()
@@ -740,7 +752,8 @@ These properties are only present for some annotation types, so support for them
 
     .. code-block:: javascript
 
-        annotation.setLineEndingStyles({start:"Square", end:"OpenArrow"});
+        annotation.setLineEndingStyles("Square", "OpenArrow");
+
 
 
 
@@ -762,11 +775,217 @@ These properties are only present for some annotation types, so support for them
    * - "Slash"
 
 
+Line Leaders
+~~~~~~~~~~~~~~~
+
+
+In a PDF line annotation, "line leaders" refer to visual elements that can be added to the endpoints of a line annotation to enhance its appearance or meaning.
+
+.. image:: images/leader-lines.png
+          :alt: Leader lines explained
+          :width: 100%
+
+
+.. method:: setLineLeader(ll)
+
+    |mutool_tag|
+
+    Sets the line leader length.
+
+    :arg ll: `Number`. The length of leader lines that extend from each endpoint of the line perpendicular to the line itself. A positive value means that the leader lines appear in the direction that is clockwise when traversing the line from its starting point to its ending point a negative value indicates the opposite direction.
+
+    .. note::
+
+        Setting a value of `0` effectivley removes the line leader.
+
+
+.. method:: getLineLeader()
+
+    |mutool_tag|
+
+    Gets the line leader length.
+
+    :return: `Number`
+
+
+.. method:: setLineLeaderExtension(lle)
+
+    |mutool_tag|
+
+    Sets the line leader extension.
+
+    :arg lle: `Number`. A non-negative number representing the length of leader line extensions that extend from the line proper 180 degrees from the leader lines.
+
+    .. note::
+
+        Setting a value of `0` effectivley removes the line leader extension.
+
+.. method:: getLineLeaderExtension()
+
+    |mutool_tag|
+
+    Gets the line leader extension.
+
+    :return: `Number`
+
+
+.. method:: setLineLeaderOffset(llo)
+
+    |mutool_tag|
+
+    Sets the line leader offset.
+
+    :arg llo: `Number`. A non-negative number representing the length of the leader line offset, which is the amount of empty space between the endpoints of the annotation and the beginning of the leader lines.
+
+    .. note::
+
+        Setting a value of `0` effectivley removes the line leader offset.
+
+.. method:: getLineLeaderOffset()
+
+    |mutool_tag|
+
+    Gets the line leader offset.
+
+    :return: `Number`
+
+
+.. method:: setLineCaption(enable)
+
+    |mutool_tag|
+
+    Sets whether line caption is enabled or not.
+
+    :arg enable: `Boolean`.
+
+
+    .. note::
+
+        When line captions are enabled then using the :meth:`setContents` method on the Line will graphically render the caption contents onto the line.
+
+
+.. method:: getLineCaption()
+
+    |mutool_tag|
+
+    Returns whether the line caption is enabled or not.
+
+    :return: `Boolean`.
+
+
+.. method:: setLineCaptionOffset(point)
+
+    |mutool_tag|
+
+    Sets any line caption offset.
+
+
+    :arg point: `Array`. A point, `[x, y]`, specifying the offset of the caption text from its normal position. The first value is the horizontal offset along the annotation line from its midpoint, with a positive value indicating offset to the right and a negative value indicating offset to the left. The second value is the vertical offset perpendicular to the annotation line, with a positive value indicating a shift up and a negative value indicating a shift down.
+
+
+    .. image:: images/offset-caption.png
+          :alt: Offset caption explained
+          :width: 100%
+
+    .. note::
+
+        Setting a point of `[0,0]` effectivley removes the caption offset.
+
+
+
+.. method:: getLineCaptionOffset()
+
+    |mutool_tag|
+
+    Returns the line caption offset as a point, `[x, y]`.
+
+    :return: `Array`.
+
+
+----
+
+
+Callouts
+~~~~~~~~~~~~
+
+Callouts are used with :ref:`"FreeText" annotations <mutool_run_js_api_annotation_types>` and allow for a graphical line to point to an area on a page.
+
+.. image:: images/callout-annot.png
+          :alt: Callout annotation
+          :width: 100%
+
+
+.. method:: hasCallout()
+
+    |mutool_tag|
+
+    Returns whether the annotation is capable of supporting a callout or not.
+
+
+    :return: `Boolean`.
+
+
+.. method:: setCalloutLine(points)
+
+    |mutool_tag|
+
+    Takes an array of 2 or 3 points.
+
+    :arg points: [ [x1, y1], [x2, y2], [x3, y3]? ].
+
+
+.. method:: getCalloutLine()
+
+    |mutool_tag|
+
+    Returns the array of points.
+
+    :return: `[ [x1, y1], [x2, y2], [x3, y3]? ]`.
+
+
+.. method:: setCalloutPoint(point)
+
+    |mutool_tag|
+
+    Takes a point where the callout should point to.
+
+    :arg points: `[x,y]`.
+
+
+.. method:: getCalloutPoint()
+
+    |mutool_tag|
+
+    Returns the callout point.
+
+    :return: `[x,y]`.
+
+
+.. method:: setCalloutStyle(style)
+
+    |mutool_tag|
+
+    Sets the style of the callout line.
+
+    :arg style: `String`. A :ref:`line ending style <mutool_pdf_annotation_line_ending_styles>`.
+
+
+.. method:: getCalloutStyle()
+
+    |mutool_tag|
+
+    Returns the callout style.
+
+    :return: `String`.
+
+
+----
+
+
 .. method:: hasIcon()
 
-    |mutool_tag_wasm_soon|
+    Returns whether the annotation is capable of supporting an icon or not.
 
-    Checks the support for annotation icon.
 
     :return: `Boolean`.
 
@@ -776,7 +995,7 @@ These properties are only present for some annotation types, so support for them
 
         var hasIcon = annotation.hasIcon();
 
-    .. |tor_todo| WASM TypeError: annotation.hasIcon is not a function
+
 
 
 .. method:: getIcon()
@@ -870,9 +1089,7 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: hasLine()
 
-    |mutool_tag_wasm_soon|
-
-    Checks the support for annotation line.
+    Returns whether the annotation is capable of supporting a line or not.
 
     :return: `Boolean`.
 
@@ -882,7 +1099,7 @@ These properties are only present for some annotation types, so support for them
 
         var hasLine = annotation.hasLine();
 
-    .. |tor_todo| WASM TypeError: annotation.hasLine is not a function
+
 
 
 .. method:: getLine()
@@ -903,9 +1120,6 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: setLine(endpoints)
 
-
-
-
     Set the two line end points, represented by an array of two points, each represented as an `[x, y]` array.
 
     :arg endpoint1: `[x,y]`.
@@ -918,12 +1132,47 @@ These properties are only present for some annotation types, so support for them
         annotation.setLine([100,100], [150, 175]);
 
 
+.. method:: hasPopup()
+
+    Returns whether the annotation is capable of supporting a popup or not.
+
+    :return: `Boolean`.
+
+    |example_tag|
+
+    .. code-block:: javascript
+
+        var hasPopup = annotation.hasPopup();
+
+
+.. method:: getPopup()
+
+    Get annotation popup rectangle.
+
+    :return: `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
+
+    |example_tag|
+
+    .. code-block:: javascript
+
+        var popupRect = annotation.getPopup();
+
+.. method:: setPopup(rect)
+
+    Set annotation popup rectangle.
+
+    :arg rect: `[ulx,uly,lrx,lry]` :ref:`Rectangle<mutool_run_js_api_rectangle>`.
+
+    |example_tag|
+
+    .. code-block:: javascript
+
+        annotation.setPopup([0,0,100,100]);
+
 
 .. method:: hasOpen()
 
-    |mutool_tag_wasm_soon|
-
-    Checks the support for annotation open state.
+    Returns whether the annotation is capable of supporting an open state or not.
 
     :return: `Boolean`.
 
@@ -932,8 +1181,6 @@ These properties are only present for some annotation types, so support for them
     .. code-block:: javascript
 
         var hasOpen = annotation.hasOpen();
-
-    .. |tor_todo| WASM TypeError: annotation.hasOpen is not a function
 
 
 .. method:: getIsOpen()
@@ -950,7 +1197,6 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: setIsOpen(state)
 
-    |mutool_tag_wasm_soon|
 
     Set annotation open state.
 
@@ -969,9 +1215,7 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: hasFilespec()
 
-    |mutool_tag|
-
-    Checks support for the annotation file specification.
+    Returns whether the annotation is capable of supporting the annotation file specification.
 
     :return: `Boolean`.
 
@@ -987,7 +1231,6 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: getFilespec()
 
-    |mutool_tag|
 
     Gets the file specification object.
 
@@ -1007,7 +1250,6 @@ These properties are only present for some annotation types, so support for them
 
 .. method:: setFilespec(fileSpecObject)
 
-    |mutool_tag|
 
     Sets the file specification object.
 
@@ -1035,9 +1277,7 @@ The border drawn around some annotations can be controlled by:
 
 .. method:: hasBorder()
 
-    |mutool_tag_wasm_soon|
-
-    Check support for the annotation border style.
+    Returns whether the annotation is capable of supporting border style.
 
     :return: `Boolean`.
 
@@ -1047,7 +1287,7 @@ The border drawn around some annotations can be controlled by:
 
         var hasBorder = annotation.hasBorder();
 
-    .. |tor_todo| WASM, TypeError: annotation.hasBorder is not a function
+
 
 
 .. method:: getBorderStyle()
@@ -1196,9 +1436,7 @@ Annotations that have a border effect allows the effect to be controlled by:
 
 .. method:: hasBorderEffect()
 
-    |mutool_tag_wasm_soon|
-
-    Check support for annotation border effect.
+    Returns whether the annotation is capable of supporting border effect.
 
     :return: `Boolean`.
 
@@ -1209,7 +1447,7 @@ Annotations that have a border effect allows the effect to be controlled by:
         var hasEffect = annotation.hasBorderEffect();
 
 
-    .. |tor_todo| WASM, TypeError:
+
 
 
 .. method:: getBorderEffect()
@@ -1283,7 +1521,8 @@ Ink annotations consist of a number of strokes, each consisting of a sequence of
 
 .. method:: hasInkList()
 
-    Check support for the annotation ink list.
+    Returns whether the annotation is capable of supporting ink list.
+
 
     :return: `Boolean`.
 
@@ -1400,9 +1639,7 @@ Text markup and redaction annotations consist of a set of quadadrilaterals contr
 
 .. method:: hasQuadPoints()
 
-    |mutool_tag_wasm_soon|
-
-    Check support for the annotation quadpoints.
+    Returns whether the annotation is capable of supporting quadpoints.
 
     :return: `Boolean`.
 
@@ -1412,7 +1649,7 @@ Text markup and redaction annotations consist of a set of quadadrilaterals contr
 
         var hasQuadPoints = annotation.hasQuadPoints();
 
-    .. |tor_todo| WASM, TypeError: annotation.hasQuadPoints is not a function
+
 
 .. method:: getQuadPoints()
 
@@ -1463,16 +1700,14 @@ Text markup and redaction annotations consist of a set of quadadrilaterals contr
 
     .. code-block:: javascript
 
-        annotation.setQuadPoints([1,2,3,4,5,6,7,8]);
+        annotation.addQuadPoint([1,2,3,4,5,6,7,8]);
 
 
 Polygon and polyline annotations consist of a sequence of vertices with a straight line between them. Those can be controlled by:
 
 .. method:: hasVertices()
 
-    |mutool_tag_wasm_soon|
-
-    Check support for the annotation vertices.
+    Returns whether the annotation is capable of supporting annotation vertices.
 
     :return: `Boolean`.
 
@@ -1482,7 +1717,7 @@ Polygon and polyline annotations consist of a sequence of vertices with a straig
 
         var hasVertices = annotation.hasVertices();
 
-    .. |tor_todo| WASM, TypeError: annotation.hasVertices is not a function
+
 
 
 .. method:: getVertices()
@@ -1527,7 +1762,7 @@ Polygon and polyline annotations consist of a sequence of vertices with a straig
 
 .. method:: addVertex(vertex)
 
-    |mutool_tag_wasm_soon|
+
 
     Append a single vertex as an array of its X/Y coordinates.
 

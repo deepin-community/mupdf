@@ -2,33 +2,78 @@ Source: mupdf
 Section: text
 Priority: optional
 Maintainer: Kan-Ru Chen (陳侃如) <koster@debian.org>
-Uploaders: Quoc-Viet Nguyen <afelion@gmail.com>
-Build-Depends: afdko-bin:native, debhelper-compat (= 13), fonts-droid-fallback,
- fonts-noto-cjk, fonts-noto-core, fonts-sil-charis, fonts-urw-base35,
- libfreetype-dev, libgumbo-dev, pkg-config, libjpeg-dev, libjbig2dec0-dev (>= 0.20),
- libmujs-dev, libopenjp2-7-dev, libx11-dev, libxext-dev, zlib1g-dev,
- libharfbuzz-dev, freeglut3-dev, libssl-dev, liblcms2-dev, python3:any,
- texlive-fonts-extra, unzip
-Standards-Version: 4.6.2
+Uploaders: Daniel Echeverri <epsilon@debian.org>
+Build-Depends: afdko-bin:native,
+               debhelper-compat (= 13),
+               fonts-droid-fallback,
+               fonts-noto-cjk,
+               fonts-noto-core,
+               fonts-sil-charis,
+               fonts-urw-base35,
+               freeglut3-dev,
+               furo,
+               libfreetype-dev,
+               libgumbo-dev,
+               libharfbuzz-dev,
+               libjbig2dec0-dev (>= 0.20),
+               libjpeg-dev,
+               liblcms2-dev,
+               libmujs-dev,
+               libopenjp2-7-dev,
+               libssl-dev,
+               libx11-dev,
+               libxext-dev,
+               pkgconf,
+	       dh-sequence-python3,
+	       python3-all,
+               python3-clang,
+               python3-dev:any,
+               python3-docutils,
+               python3-pygments,
+               python3-sphinx-copybutton,
+               python3-sphinx-rtd-theme,
+	       python3-sphinx,
+               rst2pdf,
+               swig,
+               texlive-fonts-extra,
+               unzip,
+               zlib1g-dev
+Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://mupdf.com/
-Vcs-Git: https://salsa.debian.org/koster/mupdf.git
-Vcs-Browser: https://salsa.debian.org/koster/mupdf
+Vcs-Git: https://salsa.debian.org/debian/mupdf.git
+Vcs-Browser: https://salsa.debian.org/debian/mupdf
 
 Package: libmupdf-dev
 Architecture: any
 Section: libdevel
-Depends: ${misc:Depends}
+Depends: libfreetype-dev, libmupdf25.1 (= ${binary:Version}), ${misc:Depends}
 Built-Using: ${Built-Using}
 Description: development files for the MuPDF viewer
  MuPDF is a lightweight PDF viewer and toolkit written in portable C.
  It also reads XPS, OpenXPS and ePub documents.
  .
- This package contains the static library and headers.
+ This package contains the static the unversioned library and headers.
+
+Package: libmupdf25.1
+Architecture: any
+Section: libs
+Depends: libjbig2dec0 (>= 0.19), ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${Built-Using}
+Description: shared library for the MuPDF viewer
+ MuPDF is a lightweight PDF viewer and toolkit written in portable C.
+ It also reads XPS, OpenXPS and ePub documents.
+ .
+ This package contains the shared library libmupdf and libmupdfcpp.
 
 Package: mupdf
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libjbig2dec0 (>= 0.19)
+Depends: libjbig2dec0 (>= 0.19),
+         libjs-sphinxdoc,
+         libmupdf25.1 (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends},
+	     ${sphinxdoc:Depends}
 Built-Using: ${Built-Using}
 Suggests: mupdf-tools
 Provides: pdf-viewer
@@ -43,7 +88,10 @@ Description: lightweight PDF viewer
 
 Package: mupdf-tools
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libjbig2dec0 (>= 0.19)
+Depends: libjbig2dec0 (>= 0.19),
+         libmupdf25.1 (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Description: command line tools for the MuPDF viewer
  MuPDF is a lightweight PDF viewer and toolkit written in portable C.
  It also reads XPS, OpenXPS and ePub documents.
@@ -51,3 +99,12 @@ Description: command line tools for the MuPDF viewer
  This package contains command line tools using the MuPDF library:
   - mutool - tool for clean, extract, inspect PDF documents and
              render PDF/XPS/CBZ documents.
+
+Package: python3-mupdf
+Architecture: any
+Depends: libmupdf25.1 (= ${binary:Version}), ${python3:Depends}, ${misc:Depends}, ${shlibs:Depends}
+Description: Python bindings for MuPDF library
+ MuPDF is a lightweight PDF viewer and toolkit written in portable C.
+ It also reads XPS, OpenXPS and ePub documents.
+ .
+ This package contains the contains low level mupdf Python bindings.

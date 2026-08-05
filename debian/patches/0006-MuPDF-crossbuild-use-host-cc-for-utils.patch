@@ -3,18 +3,19 @@ Date: Sat, 18 Nov 2023 17:30:57 +0900
 Subject: MuPDF crossbuild use host cc for utils
 
 ---
- Makerules | 1 +
- 1 file changed, 1 insertion(+)
+ Makerules | 2 ++
+ 1 file changed, 2 insertions(+)
 
 diff --git a/Makerules b/Makerules
-index a5dc4e9..b9772cc 100644
+index e6df0a2..5df7aec 100644
 --- a/Makerules
 +++ b/Makerules
-@@ -10,6 +10,7 @@ ifeq ($(OS),)
- endif
+@@ -12,6 +12,8 @@ endif
+ WARNING_CFLAGS := -Wall -Wsign-compare
  
  PKG_CONFIG ?= pkg-config
-+CC_FOR_BUILD ?= $(CC)
- HAVE_LIBDL ?= yes
- WARNING_CFLAGS := -Wall -Wsign-compare
++C_FOR_BUILD ?= $(CC)
++HAVE_LIBDL ?= yes
+ 
+ # Feature configuration options
  

@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2023 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -80,10 +80,6 @@ fz_trace_text_span(fz_context *ctx, fz_output *out, fz_text_span *span, int dept
 	for (i = 0; i < span->len; i++)
 	{
 		int ucs = span->items[i].ucs;
-		float adv = 0;
-		if (span->items[i].gid >= 0) {
-			adv = fz_advance_glyph(ctx, span->font, span->items[i].gid, span->wmode);
-		}
 
 		fz_trace_indent(ctx, out, depth+1);
 		fz_write_string(ctx, out, "<g");
@@ -113,7 +109,7 @@ fz_trace_text_span(fz_context *ctx, fz_output *out, fz_text_span *span, int dept
 			fz_write_printf(ctx, out, " glyph=\"%s\"", name);
 		}
 
-		fz_write_printf(ctx, out, " x=\"%g\" y=\"%g\" adv=\"%g\"/>\n", span->items[i].x, span->items[i].y, adv);
+		fz_write_printf(ctx, out, " x=\"%g\" y=\"%g\" adv=\"%g\"/>\n", span->items[i].x, span->items[i].y, span->items[i].adv);
 	}
 	fz_trace_indent(ctx, out, depth);
 	fz_write_string(ctx, out, "</span>\n");
@@ -488,13 +484,13 @@ fz_trace_begin_mask(fz_context *ctx, fz_device *dev_, fz_rect bbox, int luminosi
 }
 
 static void
-fz_trace_end_mask(fz_context *ctx, fz_device *dev_)
+fz_trace_end_mask(fz_context *ctx, fz_device *dev_, fz_function *tr)
 {
 	fz_trace_device *dev = (fz_trace_device*)dev_;
 	fz_output *out = dev->out;
 	dev->depth--;
 	fz_trace_indent(ctx, out, dev->depth);
-	fz_write_printf(ctx, out, "</clip_mask>\n");
+	fz_write_printf(ctx, out, "</clip_mask%s>\n", tr ? " (with TR)" : "");
 	dev->depth++;
 }
 
@@ -552,7 +548,7 @@ fz_trace_begin_layer(fz_context *ctx, fz_device *dev_, const char *name)
 	fz_trace_device *dev = (fz_trace_device*)dev_;
 	fz_output *out = dev->out;
 	fz_trace_indent(ctx, out, dev->depth);
-	fz_write_printf(ctx, out, "<layer name=\"%s\">\n", name);
+	fz_write_printf(ctx, out, "<layer name=\"%s\">\n", name ? name : "");
 	dev->depth++;
 }
 
@@ -567,7 +563,7 @@ fz_trace_end_layer(fz_context *ctx, fz_device *dev_)
 }
 
 static void
-fz_trace_begin_structure(fz_context *ctx, fz_device *dev_, fz_structure standard, const char *raw, int uid)
+fz_trace_begin_structure(fz_context *ctx, fz_device *dev_, fz_structure standard, const char *raw, int idx)
 {
 	fz_trace_device *dev = (fz_trace_device*)dev_;
 	fz_output *out = dev->out;
@@ -576,8 +572,8 @@ fz_trace_begin_structure(fz_context *ctx, fz_device *dev_, fz_structure standard
 	fz_write_printf(ctx, out, "<structure standard=\"%s\"", str);
 	if (raw && strcmp(str, raw))
 		fz_write_printf(ctx, out, " raw=\"%s\"", raw);
-	if (uid != 0)
-		fz_write_printf(ctx, out, " uid=\"%d\"", uid);
+	if (idx != 0)
+		fz_write_printf(ctx, out, " idx=\"%d\"", idx);
 	fz_write_printf(ctx, out, ">\n");
 	dev->depth++;
 }

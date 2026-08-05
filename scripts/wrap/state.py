@@ -53,7 +53,7 @@ def get_name_canonical( type_):
     Wrap Clang's clang.cindex.Type.get_canonical() to avoid returning anonymous
     struct that clang spells as 'struct (unnamed at ...)'.
     '''
-    if type_.spelling == 'size_t':
+    if type_.spelling in ('size_t', 'int64_t'):
         #jlib.log( 'Not canonicalising {self.spelling=}')
         return type_
     ret = type_.get_canonical()
@@ -71,6 +71,7 @@ class State:
         self.openbsd = self.os_name == 'OpenBSD'
         self.linux = self.os_name == 'Linux'
         self.macos = self.os_name == 'Darwin'
+        self.pyodide = os.environ.get('OS') == 'pyodide'
         self.have_done_build_0 = False
 
         # Maps from <tu> to dict of fnname: cursor.
@@ -116,7 +117,7 @@ class State:
                 if self.show_details( fnname):
                     jlib.log( 'Looking at {fnname=}')
                 if fnname in omit_fns:
-                    jlib.log('{fnname=} is in omit_fns')
+                    jlib.log1('{fnname=} is in omit_fns')
                 else:
                     fns[ fnname] = cursor
             if (cursor.kind == clang.cindex.CursorKind.VAR_DECL
@@ -128,7 +129,7 @@ class State:
         self.global_data[ tu] = global_data
         self.enums[ tu] = enums
         self.structs[ tu] = structs
-        jlib.log('Have populated fns and global_data. {len(enums)=} {len(self.structs)} {len(fns)=}')
+        jlib.log1('Have populated fns and global_data. {len(enums)=} {len(self.structs)} {len(fns)=}')
 
     def find_functions_starting_with( self, tu, name_prefix, method):
         '''
@@ -327,14 +328,13 @@ class BuildDirs:
         if state_.windows:
             # Infer cpu and python version from self.dir_so. And append current
             # cpu and python version if not already present.
-            leaf = os.path.basename(self.dir_so)
-            m = re.match( 'shared-([a-z]+)$', leaf)
-            if m:
+            m = re.search( '-(x[0-9]+)-py([0-9.]+)$', self.dir_so)
+            if not m:
                 suffix = f'-{Cpu(cpu_name())}-py{python_version()}'
-                jlib.log('Adding suffix to {leaf!r}: {suffix!r}')
+                jlib.log('Adding suffix to {self.dir_so=}: {suffix!r}')
                 self.dir_so += suffix
-                leaf = os.path.basename(self.dir_so)
-            m = re.search( '-(x[0-9]+)-py([0-9.]+)$', leaf)
+                m = re.search( '-(x[0-9]+)-py([0-9.]+)$', self.dir_so)
+                assert m
             #log(f'self.dir_so={self.dir_so} {os.path.basename(self.dir_so)} m={m}')
             assert m, f'Failed to parse dir_so={self.dir_so!r} - should be *-x32|x64-pyA.B'
             self.cpu = Cpu( m.group(1))
@@ -345,7 +345,29 @@ class BuildDirs:
             self.cpu = Cpu(cpu_name())
             self.python_version = python_version()
 
+        # Set Py_LIMITED_API if it occurs in dir_so.
+        self.Py_LIMITED_API = None
+        flags = os.path.basename(self.dir_so).split('-')
+        for flag in flags:
+            if flag == 'Py_LIMITED_API':
+                self.Py_LIMITED_API = '0x03080000'
+            elif flag.startswith('Py_LIMITED_API='):    # 2024-11-15: fixme: obsolete
+                self.Py_LIMITED_API = flag[len('Py_LIMITED_API='):]
+            elif flag.startswith('Py_LIMITED_API_'):
+                self.Py_LIMITED_API = flag[len('Py_LIMITED_API_'):]
+        jlib.log(f'{self.Py_LIMITED_API=}')
+
+        # Set swig .i and .cpp paths, including Py_LIMITED_API so that
+        # different values of Py_LIMITED_API can be tested without rebuilding
+        # unnecessarily.
+        Py_LIMITED_API_infix = f'-Py_LIMITED_API_{self.Py_LIMITED_API}' if self.Py_LIMITED_API else ''
+        self.mupdfcpp_swig_i    = lambda language: f'{self.dir_mupdf}/platform/{language}/mupdfcpp_swig{Py_LIMITED_API_infix}.i'
+        self.mupdfcpp_swig_cpp  = lambda language: self.mupdfcpp_swig_i(language) + '.cpp'
+
     def windows_build_type(self):
+        '''
+        Returns `Release` or `Debug`.
+        '''
         dir_so_flags = os.path.basename( self.dir_so).split( '-')
         if 'debug' in dir_so_flags:
             return 'Debug'

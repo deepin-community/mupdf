@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -351,9 +351,9 @@ fz_new_colorspace(fz_context *ctx, enum fz_colorspace_type type, int flags, int 
 	FZ_INIT_KEY_STORABLE(cs, 1, fz_drop_colorspace_imp);
 
 	if (n > FZ_MAX_COLORS)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "too many color components (%d > %d)", n, FZ_MAX_COLORS);
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "too many color components (%d > %d)", n, FZ_MAX_COLORS);
 	if (n < 1)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "too few color components (%d < 1)", n);
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "too few color components (%d < 1)", n);
 
 	fz_try(ctx)
 	{
@@ -526,9 +526,9 @@ fz_colorspace *fz_new_cal_rgb_colorspace(fz_context *ctx, float wp[3], float bp[
 void fz_colorspace_name_colorant(fz_context *ctx, fz_colorspace *cs, int i, const char *name)
 {
 	if (i < 0 || i >= cs->n)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Attempt to name out of range colorant");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Attempt to name out of range colorant");
 	if (cs->type != FZ_COLORSPACE_SEPARATION)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Attempt to name colorant for non-separation colorspace");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Attempt to name colorant for non-separation colorspace");
 
 	fz_free(ctx, cs->u.separation.colorant[i]);
 	cs->u.separation.colorant[i] = NULL;
@@ -543,7 +543,7 @@ void fz_colorspace_name_colorant(fz_context *ctx, fz_colorspace *cs, int i, cons
 const char *fz_colorspace_colorant(fz_context *ctx, fz_colorspace *cs, int i)
 {
 	if (!cs || i < 0 || i >= cs->n)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Colorant out of range");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Colorant out of range");
 	switch (cs->type)
 	{
 	case FZ_COLORSPACE_NONE:
@@ -648,17 +648,17 @@ fz_drop_default_colorspaces(fz_context *ctx, fz_default_colorspaces *default_cs)
 
 fz_colorspace *fz_default_gray(fz_context *ctx, const fz_default_colorspaces *default_cs)
 {
-	return default_cs ? default_cs->gray : fz_device_gray(ctx);
+	return (default_cs && default_cs->gray) ? default_cs->gray : fz_device_gray(ctx);
 }
 
 fz_colorspace *fz_default_rgb(fz_context *ctx, const fz_default_colorspaces *default_cs)
 {
-	return default_cs ? default_cs->rgb : fz_device_rgb(ctx);
+	return (default_cs && default_cs->rgb) ? default_cs->rgb : fz_device_rgb(ctx);
 }
 
 fz_colorspace *fz_default_cmyk(fz_context *ctx, const fz_default_colorspaces *default_cs)
 {
-	return default_cs ? default_cs->cmyk : fz_device_cmyk(ctx);
+	return (default_cs && default_cs->cmyk)  ? default_cs->cmyk : fz_device_cmyk(ctx);
 }
 
 fz_colorspace *fz_default_output_intent(fz_context *ctx, const fz_default_colorspaces *default_cs)
@@ -940,9 +940,9 @@ static void
 fz_init_process_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_colorspace *is, fz_color_params params)
 {
 	if (ss->type == FZ_COLORSPACE_INDEXED)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "base colorspace must not be indexed");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "base colorspace must not be indexed");
 	if (ss->type == FZ_COLORSPACE_SEPARATION)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "base colorspace must not be separation");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "base colorspace must not be separation");
 
 #if FZ_ENABLE_ICC
 	if (ctx->icc_enabled)
@@ -971,6 +971,8 @@ fz_init_process_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colo
 		}
 		fz_catch(ctx)
 		{
+			fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
+			fz_report_error(ctx);
 			fz_warn(ctx, "cannot create ICC link, falling back to fast color conversion");
 			cc->convert = fz_lookup_fast_color_converter(ctx, ss, ds);
 		}
@@ -985,17 +987,19 @@ fz_init_process_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colo
 }
 
 void
-fz_find_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_colorspace *is, fz_color_params params)
+fz_find_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_separations *dseps, fz_colorspace *is, fz_color_params params)
 {
 	cc->ds = ds;
+	cc->dseps = NULL;
+	cc->dst_n = ds->n;
 #if FZ_ENABLE_ICC
 	cc->link = NULL;
 #endif
 
 	if (ds->type == FZ_COLORSPACE_INDEXED)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Cannot convert into Indexed colorspace.");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Cannot convert into Indexed colorspace.");
 	if (ds->type == FZ_COLORSPACE_SEPARATION)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Cannot convert into Separation colorspace.");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Cannot convert into Separation colorspace.");
 
 	if (ss->type == FZ_COLORSPACE_INDEXED)
 	{
@@ -1018,11 +1022,21 @@ fz_find_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *
 	}
 	else if (ss->type == FZ_COLORSPACE_SEPARATION)
 	{
-		cc->ss = ss->u.separation.base;
-		cc->ss_via = ss;
-		fz_init_process_color_converter(ctx, cc, cc->ss, ds, is, params);
-		cc->convert_via = cc->convert;
-		cc->convert = separation_via_base;
+		if (dseps &&
+			fz_init_separation_copy_color_converter(ctx, cc, ss, ds, dseps, is, params))
+		{
+			/* We can just copy separations from ss to dseps */
+			cc->dseps = dseps;
+			cc->dst_n += fz_count_separations(ctx, dseps);
+		}
+		else
+		{
+			cc->ss = ss->u.separation.base;
+			cc->ss_via = ss;
+			fz_init_process_color_converter(ctx, cc, cc->ss, ds, is, params);
+			cc->convert_via = cc->convert;
+			cc->convert = separation_via_base;
+		}
 	}
 	else
 	{
@@ -1047,7 +1061,7 @@ void
 fz_convert_color(fz_context *ctx, fz_colorspace *ss, const float *sv, fz_colorspace *ds, float *dv, fz_colorspace *is, fz_color_params params)
 {
 	fz_color_converter cc;
-	fz_find_color_converter(ctx, &cc, ss, ds, is, params);
+	fz_find_color_converter(ctx, &cc, ss, ds, NULL, is, params);
 	cc.convert(ctx, &cc, sv, dv);
 	fz_drop_color_converter(ctx, &cc);
 }
@@ -1066,7 +1080,7 @@ static void fz_cached_color_convert(fz_context *ctx, fz_color_converter *cc_, co
 	if (cc->hash)
 	{
 		float *val = fz_hash_find(ctx, cc->hash, ss);
-		int n = cc->base.ds->n * sizeof(float);
+		int n = cc->base.dst_n * sizeof(float);
 
 		if (val)
 		{
@@ -1076,12 +1090,16 @@ static void fz_cached_color_convert(fz_context *ctx, fz_color_converter *cc_, co
 
 		cc->base.convert(ctx, &cc->base, ss, ds);
 
-		val = Memento_label(fz_malloc_array(ctx, cc->base.ds->n, float), "cached_color_convert");
+		val = Memento_label(fz_malloc_array(ctx, cc->base.dst_n, float), "cached_color_convert");
 		memcpy(val, ds, n);
 		fz_try(ctx)
 			fz_hash_insert(ctx, cc->hash, ss, val);
 		fz_catch(ctx)
+		{
+			fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
+			fz_report_error(ctx);
 			fz_free(ctx, val);
+		}
 	}
 	else
 	{
@@ -1089,7 +1107,7 @@ static void fz_cached_color_convert(fz_context *ctx, fz_color_converter *cc_, co
 	}
 }
 
-void fz_init_cached_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_colorspace *is, fz_color_params params)
+void fz_init_cached_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_separations *dseps, fz_colorspace *is, fz_color_params params)
 {
 	int n = ss->n;
 	fz_cached_color_converter *cached = fz_malloc_struct(ctx, fz_cached_color_converter);
@@ -1104,7 +1122,7 @@ void fz_init_cached_color_converter(fz_context *ctx, fz_color_converter *cc, fz_
 
 	fz_try(ctx)
 	{
-		fz_find_color_converter(ctx, &cached->base, ss, ds, is, params);
+		fz_find_color_converter(ctx, &cached->base, ss, ds, dseps, is, params);
 		if (n * sizeof(float) <= FZ_HASH_TABLE_KEY_LENGTH)
 			cached->hash = fz_new_hash_table(ctx, 256, n * sizeof(float), -1, fz_free);
 		else
@@ -1160,7 +1178,7 @@ template_convert_lab(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst, fz_c
 
 	int k;
 
-	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, is, params);
+	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, NULL, is, params);
 	while (h--)
 	{
 		size_t ww = w;
@@ -1273,7 +1291,7 @@ template_brute_force(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst, fz_c
 
 	int k;
 
-	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, is, params);
+	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, NULL, is, params);
 	while (h--)
 	{
 		size_t ww = w;
@@ -1386,7 +1404,7 @@ lookup_1d(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst, fz_colorspace *
 
 	unsigned char lookup[FZ_MAX_COLORS * 256];
 
-	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, is, params);
+	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, NULL, is, params);
 	for (i = 0; i < 256; i++)
 	{
 		srcv[0] = i / 255.0f;
@@ -1469,7 +1487,7 @@ memoize_nospots(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst, fz_colors
 	int alpha = 255;
 
 	lookup = fz_new_hash_table(ctx, 509, src_n, -1, NULL);
-	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, is, params);
+	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, NULL, is, params);
 
 	fz_try(ctx)
 	{
@@ -1577,7 +1595,7 @@ memoize_spots(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst, fz_colorspa
 	sold[0] = s[0] ^ 255;
 
 	lookup = fz_new_hash_table(ctx, 509, src_m, -1, NULL);
-	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, is, params);
+	fz_find_color_converter(ctx, &cc, src_cs, dst_cs, NULL, is, params);
 
 	fz_try(ctx)
 	{
@@ -1807,6 +1825,10 @@ fz_convert_pixmap_samples(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst,
 
 	fz_try(ctx)
 	{
+		/* Treat any alpha-only pixmap as being device gray here. */
+		if (!ss)
+			ss = fz_device_gray(ctx);
+
 		/* Convert indexed into base colorspace. */
 		if (ss->type == FZ_COLORSPACE_INDEXED)
 		{
@@ -1882,6 +1904,8 @@ fz_convert_pixmap_samples(fz_context *ctx, const fz_pixmap *src, fz_pixmap *dst,
 			}
 			fz_catch(ctx)
 			{
+				fz_rethrow_if(ctx, FZ_ERROR_SYSTEM);
+				fz_report_error(ctx);
 				fz_warn(ctx, "falling back to fast color conversion");
 				fz_convert_fast_pixmap_samples(ctx, src, dst, copy_spots);
 			}

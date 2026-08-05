@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -119,6 +119,7 @@ static void saveimage(pdf_obj *ref)
 	int type;
 
 	fz_var(image);
+	fz_var(mask);
 	fz_var(pix);
 
 	fz_try(ctx)
@@ -209,7 +210,7 @@ static void savefont(pdf_obj *dict)
 
 		obj = pdf_dict_get(ctx, obj, PDF_NAME(Subtype));
 		if (obj && !pdf_is_name(ctx, obj))
-			fz_throw(ctx, FZ_ERROR_GENERIC, "invalid font descriptor subtype");
+			fz_throw(ctx, FZ_ERROR_FORMAT, "invalid font descriptor subtype");
 
 		if (pdf_name_eq(ctx, obj, PDF_NAME(Type1C)))
 			ext = "cff";
@@ -218,12 +219,11 @@ static void savefont(pdf_obj *dict)
 		else if (pdf_name_eq(ctx, obj, PDF_NAME(OpenType)))
 			ext = "otf";
 		else
-			fz_throw(ctx, FZ_ERROR_GENERIC, "unhandled font type '%s'", pdf_to_name(ctx, obj));
+			fz_throw(ctx, FZ_ERROR_UNSUPPORTED, "unhandled font type '%s'", pdf_to_name(ctx, obj));
 	}
 
 	if (!stream)
 	{
-		fz_warn(ctx, "unhandled font type");
 		return;
 	}
 
@@ -252,10 +252,9 @@ static void savefont(pdf_obj *dict)
 
 static void extractobject(int num)
 {
-	pdf_obj *ref;
+	pdf_obj *ref = NULL;
 
-	if (!doc)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "no file specified");
+	fz_var(ref);
 
 	fz_try(ctx)
 	{
@@ -270,7 +269,10 @@ static void extractobject(int num)
 	fz_always(ctx)
 		pdf_drop_obj(ctx, ref);
 	fz_catch(ctx)
+	{
+		fz_report_error(ctx);
 		fz_warn(ctx, "ignoring object %d", num);
+	}
 }
 
 int pdfextract_main(int argc, char **argv)
@@ -315,7 +317,7 @@ int pdfextract_main(int argc, char **argv)
 		doc = pdf_open_document(ctx, infile);
 		if (pdf_needs_password(ctx, doc))
 			if (!pdf_authenticate_password(ctx, doc, password))
-				fz_throw(ctx, FZ_ERROR_GENERIC, "cannot authenticate password: %s", infile);
+				fz_throw(ctx, FZ_ERROR_ARGUMENT, "cannot authenticate password: %s", infile);
 
 		if (fz_optind == argc)
 		{
@@ -336,7 +338,7 @@ int pdfextract_main(int argc, char **argv)
 		pdf_drop_document(ctx, doc);
 	fz_catch(ctx)
 	{
-		fz_log_error(ctx, fz_caught_message(ctx));
+		fz_report_error(ctx);
 		ret = 1;
 	}
 

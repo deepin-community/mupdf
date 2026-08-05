@@ -10,7 +10,7 @@
 Welcome to :title:`MuPDF`
 ================================
 
-.. image:: images/mupdf-icon.png
+.. image:: images/mupdf-web-icon.png
    :align: left
    :scale: 20%
 
@@ -25,7 +25,6 @@ Welcome to :title:`MuPDF`
 ----
 
 
-
 .. toctree::
    :caption: User Guide
    :maxdepth: 2
@@ -33,6 +32,7 @@ Welcome to :title:`MuPDF`
    quick-start-guide.rst
    using-mupdf.rst
    mupdf-wasm.rst
+   coordinate-system.rst
 
 
 .. toctree::
