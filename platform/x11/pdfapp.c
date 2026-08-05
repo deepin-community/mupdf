@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2024 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 39 Mesa Street, Suite 108A, San Francisco,
+// CA 94129, USA, for further information.
+
 #include "pdfapp.h"
 #include "curl_stream.h"
 #include "mupdf/helpers/pkcs7-openssl.h"
@@ -17,33 +39,9 @@
 
 #define BEYOND_THRESHHOLD 40
 
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
-
-static int
-fz_mkdir(char *path)
-{
-#ifdef _WIN32
-	int ret;
-	wchar_t *wpath = fz_wchar_from_utf8(path);
-
-	if (wpath == NULL)
-		return -1;
-
-	ret = _wmkdir(wpath);
-
-	free(wpath);
-
-	return ret;
-#else
-	return mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO);
-#endif
-}
 
 static int create_accel_path(fz_context *ctx, char outname[], size_t len, int create, const char *absname, ...)
 {
@@ -416,6 +414,7 @@ static int make_fake_doc(pdfapp_t *app)
 	}
 	fz_catch(ctx)
 	{
+		fz_report_error(ctx);
 		fz_drop_document(ctx, (fz_document *) pdf);
 		return 1;
 	}
@@ -458,6 +457,7 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 				{
 					if (fz_caught(ctx) == FZ_ERROR_TRYLATER)
 					{
+						fz_ignore_error(ctx);
 						pdfapp_sleep(100);
 						continue;
 					}
@@ -480,6 +480,7 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 				{
 					if (fz_caught(ctx) == FZ_ERROR_TRYLATER)
 					{
+						fz_ignore_error(ctx);
 						pdfapp_sleep(100);
 						continue;
 					}
@@ -526,8 +527,12 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 	}
 	fz_catch(ctx)
 	{
+		fz_report_error(ctx);
 		if (!reload || make_fake_doc(app))
+		{
+			fz_report_error(ctx);
 			pdfapp_error(app, "cannot open document");
+		}
 	}
 
 	idoc = pdf_specifics(app->ctx, app->doc);
@@ -540,6 +545,7 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 		}
 		fz_catch(ctx)
 		{
+			fz_report_error(ctx);
 			pdfapp_error(app, "cannot load javascript embedded in document");
 		}
 	}
@@ -578,6 +584,7 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 			{
 				if (fz_caught(ctx) == FZ_ERROR_TRYLATER)
 				{
+					fz_ignore_error(ctx);
 					continue;
 				}
 				fz_rethrow(ctx);
@@ -594,15 +601,22 @@ void pdfapp_open_progressive(pdfapp_t *app, char *filename, int reload, int kbps
 			{
 				app->outline = NULL;
 				if (fz_caught(ctx) == FZ_ERROR_TRYLATER)
+				{
+					fz_ignore_error(ctx);
 					app->outline_deferred = PDFAPP_OUTLINE_DEFERRED;
+				}
 				else
+				{
+					fz_report_error(ctx);
 					pdfapp_warn(app, "Failed to load outline.");
+				}
 			}
 			break;
 		}
 	}
 	fz_catch(ctx)
 	{
+		fz_report_error(ctx);
 		pdfapp_error(app, "cannot open document");
 	}
 
@@ -735,6 +749,7 @@ static int pdfapp_save(pdfapp_t *app)
 			}
 			fz_catch(app->ctx)
 			{
+				fz_report_error(app->ctx);
 				/* Ignore any error, so we drop out with
 				 * failure below. */
 			}
@@ -845,9 +860,15 @@ static void pdfapp_loadpage(pdfapp_t *app, int no_cache)
 	fz_catch(app->ctx)
 	{
 		if (fz_caught(app->ctx) == FZ_ERROR_TRYLATER)
+		{
+			fz_ignore_error(app->ctx);
 			app->incomplete = 1;
+		}
 		else
+		{
+			fz_report_error(app->ctx);
 			pdfapp_warn(app, "Failed to load page.");
+		}
 		return;
 	}
 
@@ -886,9 +907,15 @@ static void pdfapp_loadpage(pdfapp_t *app, int no_cache)
 		fz_catch(app->ctx)
 		{
 			if (fz_caught(app->ctx) == FZ_ERROR_TRYLATER)
+			{
+				fz_ignore_error(app->ctx);
 				app->incomplete = 1;
+			}
 			else
+			{
+				fz_report_error(app->ctx);
 				pdfapp_warn(app, "Failed to load page.");
+			}
 			errored = 1;
 		}
 	}
@@ -926,9 +953,15 @@ static void pdfapp_loadpage(pdfapp_t *app, int no_cache)
 	fz_catch(app->ctx)
 	{
 		if (fz_caught(app->ctx) == FZ_ERROR_TRYLATER)
+		{
+			fz_ignore_error(app->ctx);
 			app->incomplete = 1;
+		}
 		else
+		{
+			fz_report_error(app->ctx);
 			pdfapp_warn(app, "Failed to load page.");
+		}
 		errored = 1;
 	}
 
@@ -950,9 +983,14 @@ void pdfapp_reloadpage(pdfapp_t *app)
 	if (app->outline_deferred == PDFAPP_OUTLINE_LOAD_NOW)
 	{
 		fz_try(app->ctx)
+		{
 			app->outline = fz_load_outline(app->ctx, app->doc);
+		}
 		fz_catch(app->ctx)
+		{
+			fz_report_error(app->ctx);
 			app->outline = NULL;
+		}
 		app->outline_deferred = 0;
 	}
 	pdfapp_showpage(app, 1, 1, 1, 0, 0);
@@ -1000,8 +1038,8 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 			mediabox = fz_bound_page(app->ctx, app->page);
 		fz_catch(app->ctx)
 		{
-			if (fz_caught(app->ctx) != FZ_ERROR_TRYLATER)
-				fz_rethrow(app->ctx);
+			fz_rethrow_unless(app->ctx, FZ_ERROR_TRYLATER);
+			fz_ignore_error(app->ctx);
 			mediabox = fz_make_rect(0, 0, 100, 100);
 			app->incomplete = 1;
 		}
@@ -1087,7 +1125,10 @@ static void pdfapp_showpage(pdfapp_t *app, int loadpage, int drawpage, int repai
 		fz_always(app->ctx)
 			fz_drop_device(app->ctx, idev);
 		fz_catch(app->ctx)
+		{
+			fz_report_error(app->ctx);
 			cookie.errors++;
+		}
 	}
 
 	if (transition && drawpage)
@@ -2116,5 +2157,29 @@ void pdfapp_postblit(pdfapp_t *app)
 	{
 		/* Completed. */
 		app->in_transit = 0;
+	}
+}
+
+void pdfapp_load_profile(pdfapp_t *app, char *profile_name)
+{
+	fz_buffer *profile_data = NULL;
+	fz_var(profile_data);
+	fz_try(app->ctx)
+	{
+		profile_data = fz_read_file(app->ctx, profile_name);
+#ifdef _WIN32
+		app->colorspace = fz_new_icc_colorspace(app->ctx, FZ_COLORSPACE_BGR, 0, NULL, profile_data);
+#else
+		app->colorspace = fz_new_icc_colorspace(app->ctx, FZ_COLORSPACE_RGB, 0, NULL, profile_data);
+#endif
+	}
+	fz_always(app->ctx)
+	{
+		fz_drop_buffer(app->ctx, profile_data);
+	}
+	fz_catch(app->ctx)
+	{
+		fz_report_error(app->ctx);
+		pdfapp_error(app, "cannot load color profile");
 	}
 }

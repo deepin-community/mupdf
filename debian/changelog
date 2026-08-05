@@ -1,3 +1,149 @@
+mupdf (1.25.1+ds1-6+deb13u1) trixie-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Avoid overflow src_stride calculation in unpack_stream (CVE-2026-3308)
+    (Closes: #1133189)
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Fri, 17 Apr 2026 16:00:06 +0200
+
+mupdf (1.25.1+ds1-6) unstable; urgency=medium
+
+  * Fix segfault when using get_text() on arm64 (Closes: #1100748)
+    + Thanks to Johannes Schauer for the patch
+  * Update symbols file
+
+ -- Daniel Echeverri <epsilon@debian.org>  Mon, 21 Apr 2025 17:12:48 -0500
+
+mupdf (1.25.1+ds1-5) unstable; urgency=medium
+
+  * Move to unstable. (Closes: #1091865)
+
+ -- Daniel Echeverri <epsilon@debian.org>  Sat, 11 Jan 2025 15:10:11 -0500
+
+mupdf (1.25.1+ds1-4) experimental; urgency=medium
+
+  * Add python3-mupdf package that contains mupdf python bindings.
+  * debian/copyright
+    + Extend debian copyright holder years.
+
+ -- Daniel Echeverri <epsilon@debian.org>  Thu, 02 Jan 2025 21:59:47 -0500
+
+mupdf (1.25.1+ds1-3) experimental; urgency=medium
+
+  * Install libmupdfcpp library.
+  * Update symbols file.
+
+ -- Daniel Echeverri <epsilon@debian.org>  Wed, 01 Jan 2025 21:17:25 -0500
+
+mupdf (1.25.1+ds1-2) experimental; urgency=medium
+
+  * Install missing header files.
+
+ -- Daniel Echeverri <epsilon@debian.org>  Mon, 30 Dec 2024 20:56:45 -0500
+
+mupdf (1.25.1+ds1-1) experimental; urgency=medium
+
+  * New upstream release. (Closes: #1089681)
+  * debian/control
+    + Add libmupdf25.1 package. (Closes: #719351)
+    + Add python3-dev, python3-clang, swig, python3-sphinx-copybutton in BD.
+    + Add ${sphinxdoc:Depends} in Depends.
+  * Remove unused lintian overrides.
+  * debian/patches
+    + Add 0010_add_missing_hardening_flags.diff
+    + Refresh 0008-Add-fallback-for-missing-SA_NOCLDWAIT.patch
+  * Rename mupdf.pc to mupdf.pc.in
+  * debian/rules
+    + update rules to build shared library.
+    + Add override to build doc with sphinxdoc.
+  * Add libmupdf25.1.install file.
+  * Update libmupdf-dev.install to install the lib.
+  * Remove -static from debian/tests/Makefile.
+  * Add libmupdf25.1.symbols file.
+
+ -- Daniel Echeverri <epsilon@debian.org>  Sat, 19 Oct 2024 10:18:38 -0500
+
+mupdf (1.24.10+ds1-1) unstable; urgency=medium
+
+  * New upstream version 1.24.10+ds1
+  * debian/mupdf.docs
+    + Don't install COPYING file to avoid lintian warning.
+  * debian/control
+    + Update Vcs-* fields, the repo was moved to debian group.
+    + Add python3-sphinx-rtd-theme,furo and rst2pdf in B-D.
+    + Add libjs-sphinxdoc in Depends.
+  * Add mupdf.links file
+    + Add symlinks to use debian js libs instead embedded Js libs.
+  * debian/rules
+    + Add override to install html doc. (Closes: #952284)
+  * Add debian/mupdf.doc-base file.
+  * Use wrap-and-sort
+
+ -- Daniel Echeverri <epsilon@debian.org>  Thu, 10 Oct 2024 18:49:53 -0500
+
+mupdf (1.24.9+ds1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/control
+    + Add myself as uploader. (Closes: #1073285)
+    + Add python3-docutils and python3-pygments in BD to build manpages.
+  * debian/watch
+    + bump version to 4.
+  * debian/source/lintian-overrides
+    + Remove unused lintian override.
+  * debian/*.lintian-overrides
+    + Add lintian overrides about new manpages.
+  * debian/copyright
+    + Add myself in debian holders copyright.
+  * Add debian/upstream/metadata file.
+  * Add debian/create_tools_manpages.sh
+    + to create a missing tools manpages.
+  * debian/clean
+    + Add output_files entry.
+  * debian/rules
+    + Add dh_installmanpages override to install missing manpages.
+  * debian/mupdf-tools.manpages
+    + Install muraster manpage.
+  * debian/mupdf.manpages
+    + Install mupdf-gl manpage.
+
+ -- Daniel Echeverri <epsilon@debian.org>  Thu, 19 Sep 2024 20:09:48 -0500
+
+mupdf (1.24.8+ds2-2) unstable; urgency=medium
+
+  * debian/control: libmupdf-dev should depend on libfreetype-dev
+    (Closes: #1079519)
+
+ -- Kan-Ru Chen (陳侃如) <koster@debian.org>  Tue, 27 Aug 2024 21:09:32 +0900
+
+mupdf (1.24.8+ds2-1) unstable; urgency=medium
+
+  * New upstream version 1.24.8+ds2
+  * debian/mupdf.install: Install all icons
+  * debian/patches: Add patch to use Charis SIL ttf font directly
+  * debian/control: bump standards-version to 4.7.0, no changes needed
+  * debian/copyright: exclude generated files
+  * debian/control: switch pkg-config to pkgconf
+
+ -- Kan-Ru Chen (陳侃如) <koster@debian.org>  Fri, 23 Aug 2024 08:26:03 +0900
+
+mupdf (1.24.3+ds1-1) unstable; urgency=medium
+
+  * New upstream version 1.24.3+ds1
+  * debian/patches: refresh
+  * debian/mupdf.docs: install more docs
+  * debian/mupdf.examples: install examples
+  * debian/control: clean-up uploaders
+
+ -- Kan-Ru Chen (陳侃如) <koster@debian.org>  Sun, 16 Jun 2024 07:55:50 +0900
+
+mupdf (1.23.10+ds1-1) unstable; urgency=medium
+
+  * New upstream version 1.23.10+ds1
+  * debian/patches: refresh
+
+ -- Kan-Ru Chen (陳侃如) <koster@debian.org>  Mon, 12 Feb 2024 08:44:55 +0900
+
 mupdf (1.23.7+ds1-1) unstable; urgency=medium
 
   * New upstream version 1.23.7+ds1 (Closes: #1057375)

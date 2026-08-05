@@ -8,10 +8,10 @@ Do not strip binaries by default and use Debian LDFLAGS
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/Makerules b/Makerules
-index f25a8ce..b59780c 100644
+index f582dc0..67ff962 100644
 --- a/Makerules
 +++ b/Makerules
-@@ -90,7 +90,10 @@ endif
+@@ -112,7 +112,10 @@ endif
  
  ifeq ($(build),debug)
    CFLAGS += -pipe -g

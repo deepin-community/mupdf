@@ -81,11 +81,11 @@ void fz_add_separation(fz_context *ctx, fz_separations *sep, const char *name, f
 	int n;
 
 	if (!sep)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "can't add to non-existent separations");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "can't add to non-existent separations");
 
 	n = sep->num_separations;
 	if (n == FZ_MAX_SEPARATIONS)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "too many separations");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "too many separations");
 
 	sep->name[n] = fz_strdup(ctx, name);
 	sep->cs[n] = fz_keep_colorspace(ctx, cs);
@@ -99,11 +99,11 @@ void fz_add_separation_equivalents(fz_context *ctx, fz_separations *sep, uint32_
 	int n;
 
 	if (!sep)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "can't add to non-existent separations");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "can't add to non-existent separations");
 
 	n = sep->num_separations;
 	if (n == FZ_MAX_SEPARATIONS)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "too many separations");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "too many separations");
 
 	sep->name[n] = fz_strdup(ctx, name);
 	sep->rgba[n] = rgba;
@@ -118,7 +118,7 @@ void fz_set_separation_behavior(fz_context *ctx, fz_separations *sep, int separa
 	fz_separation_behavior old;
 
 	if (!sep || separation < 0 || separation >= sep->num_separations)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "can't control non-existent separation");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "can't control non-existent separation");
 
 	if (beh == FZ_SEPARATION_DISABLED && !sep->controllable)
 		beh = FZ_SEPARATION_DISABLED_RENDER;
@@ -151,7 +151,7 @@ sep_state(const fz_separations *sep, int i)
 fz_separation_behavior fz_separation_current_behavior_internal(fz_context *ctx, const fz_separations *sep, int separation)
 {
 	if (!sep || separation < 0 || separation >= sep->num_separations)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "can't disable non-existent separation");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "can't disable non-existent separation");
 
 	return sep_state(sep, separation);
 }
@@ -168,7 +168,7 @@ fz_separation_behavior fz_separation_current_behavior(fz_context *ctx, const fz_
 const char *fz_separation_name(fz_context *ctx, const fz_separations *sep, int separation)
 {
 	if (!sep || separation < 0 || separation >= sep->num_separations)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "can't access non-existent separation");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "can't access non-existent separation");
 
 	return sep->name[separation];
 }
@@ -358,7 +358,7 @@ fz_copy_pixmap_area_converting_seps(fz_context *ctx, fz_pixmap *src, fz_pixmap *
 
 	if (dst->x < src->x || dst->x + dst->w > src->x + src->w ||
 		dst->y < src->y || dst->y + dst->h > src->y + src-> h)
-		fz_throw(ctx, FZ_ERROR_GENERIC, "Cannot convert pixmap where dst is not within src!");
+		fz_throw(ctx, FZ_ERROR_ARGUMENT, "Cannot convert pixmap where dst is not within src!");
 
 	/* Process colorants (and alpha) first */
 	if (dst->colorspace == src->colorspace && proof_cs == NULL && dst->s == 0 && src->s == 0)
@@ -441,7 +441,7 @@ fz_copy_pixmap_area_converting_seps(fz_context *ctx, fz_pixmap *src, fz_pixmap *
 		/* Now map the colorants down. */
 		n = fz_colorspace_n(ctx, src->colorspace);
 
-		fz_find_color_converter(ctx, &cc, src->colorspace, dst->colorspace, proof_cs, color_params);
+		fz_find_color_converter(ctx, &cc, src->colorspace, dst->colorspace, NULL, proof_cs, color_params);
 
 		fz_try(ctx)
 		{
@@ -1185,11 +1185,59 @@ fz_separation_equivalent(fz_context *ctx,
 			convert[3] = ((seps->cmyk[i]>>24) & 0xff)/ 255.0f;
 			return;
 		default:
-			fz_throw(ctx, FZ_ERROR_GENERIC, "Cannot return equivalent in this colorspace");
+			fz_throw(ctx, FZ_ERROR_ARGUMENT, "Cannot return equivalent in this colorspace");
 		}
 	}
 
 	memset(colors, 0, sizeof(float) * fz_colorspace_n(ctx, seps->cs[i]));
 	colors[seps->cs_pos[i]] = 1;
 	fz_convert_color(ctx, seps->cs[i], colors, dst_cs, convert, prf, color_params);
+}
+
+static void
+convert_by_copying_separations(fz_context *ctx, fz_color_converter *cc, const float *src, float *dst)
+{
+	int i, o;
+	int n = cc->dst_n;
+	fz_separations *dseps = (fz_separations *)cc->opaque;
+
+	for (i = 0; i < n; i++)
+		dst[i] = 0;
+
+	n = dseps->num_separations;
+	o = cc->ds->n;
+	for (i = 0; i < n; i++)
+		if (dseps->cs[i] == cc->ss)
+			dst[o+i] = src[dseps->cs_pos[i]];
+}
+
+int
+fz_init_separation_copy_color_converter(fz_context *ctx, fz_color_converter *cc, fz_colorspace *ss, fz_colorspace *ds, fz_separations *dseps, fz_colorspace *is, fz_color_params params)
+{
+	int i, n;
+
+	/* No idea how to cope with intermediate space here. Bale. */
+	if (is != NULL && is != ss)
+		return 0;
+
+	/* If all the separations for ss are catered for in dseps, we can just copy the values. */
+	n = 0;
+	for (i = 0; i < dseps->num_separations; i++)
+	{
+		if (dseps->cs[i] == ss)
+			n++;
+	}
+
+	/* If all of the components of ss were found, we're happy. (We assume the destination space
+	 * doesn't have any component twice.) */
+	if (n != ss->n)
+		return 0;
+
+	cc->ss = ss;
+	cc->ss_via = NULL;
+	cc->ds = ds;
+	cc->opaque = dseps;
+	cc->convert = convert_by_copying_separations;
+
+	return 1;
 }

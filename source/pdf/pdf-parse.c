@@ -67,6 +67,15 @@ pdf_to_quad(fz_context *ctx, pdf_obj *array, int offset)
 	return q;
 }
 
+fz_point
+pdf_to_point(fz_context *ctx, pdf_obj *array, int offset)
+{
+	fz_point p;
+	p.x = pdf_array_get_real(ctx, array, offset+0);
+	p.y = pdf_array_get_real(ctx, array, offset+1);
+	return p;
+}
+
 fz_matrix
 pdf_to_matrix(fz_context *ctx, pdf_obj *array)
 {
@@ -702,10 +711,7 @@ pdf_parse_dict(fz_context *ctx, pdf_document *doc, fz_stream *file, pdf_lexbuf *
 				if (tok == PDF_TOK_CLOSE_DICT || tok == PDF_TOK_NAME ||
 					(tok == PDF_TOK_KEYWORD && !strcmp(buf->scratch, "ID")))
 				{
-					val = pdf_new_int(ctx, a);
-					pdf_dict_put(ctx, dict, key, val);
-					pdf_drop_obj(ctx, val);
-					val = NULL;
+					pdf_dict_put_int(ctx, dict, key, a);
 					pdf_drop_obj(ctx, key);
 					key = NULL;
 					goto skip;
